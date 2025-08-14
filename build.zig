@@ -250,7 +250,8 @@ fn installFileType(
 			continue;
 		}
 		const path = b.fmt("{s}/{s}", .{ sub_path, f.name });
-		install.step.dependOn(&b.addInstallFile(dep.path(path), path).step);
+		const path2 = b.fmt("lib/pd/{s}", .{ path });
+		install.step.dependOn(&b.addInstallFile(dep.path(path), path2).step);
 	}
 }
 
@@ -450,7 +451,9 @@ pub fn build(b: *std.Build) !void {
 			.files = &src.watchdog,
 			.flags = flags.items,
 		});
-		install_exe.step.dependOn(&b.addInstallArtifact(watchdog, .{}).step);
+		install_exe.step.dependOn(&b.addInstallArtifact(watchdog, .{
+			.dest_dir = .{ .override = .{ .custom = "lib/pd/bin" } },
+		}).step);
 	}
 
 	//---------------------------------------------------------------------------
@@ -483,7 +486,7 @@ pub fn build(b: *std.Build) !void {
 	// Tcl
 	try installFileType(b, upstream, install_exe, "tcl", ".tcl");
 	install_exe.step.dependOn(&b.addInstallFile(
-		upstream.path("tcl/pd.gif"), "tcl/pd.gif").step);
+		upstream.path("tcl/pd.gif"), "lib/pd/tcl/pd.gif").step);
 
 	//---------------------------------------------------------------------------
 	// Extra
@@ -508,7 +511,7 @@ pub fn build(b: *std.Build) !void {
 			});
 
 			const install_lib = b.addInstallFile(lib.getEmittedBin(),
-				b.fmt("{s}{s}", .{ x[0..end], ext }));
+				b.fmt("lib/pd/{s}{s}", .{ x[0..end], ext }));
 			install_lib.step.dependOn(&lib.step);
 			install_exe.step.dependOn(&install_lib.step);
 			try installFileType(b, upstream, install_exe, x[0..tail], ".pd");
@@ -530,12 +533,13 @@ pub fn build(b: *std.Build) !void {
 				}),
 			});
 			const install_lib = b.addInstallFile(lib.getEmittedBin(),
-				b.fmt("{s}{s}", .{ path, ext }));
+				b.fmt("lib/pd/{s}{s}", .{ path, ext }));
 			install_lib.step.dependOn(&lib.step);
 			install_exe.step.dependOn(&install_lib.step);
 
 			const help = b.fmt("{s}-help.pd", .{ path });
-			install_exe.step.dependOn(&b.addInstallFile(b.path(help), help).step);
+			const help2 = b.fmt("lib/pd/{s}", .{ help });
+			install_exe.step.dependOn(&b.addInstallFile(b.path(help), help2).step);
 		}
 	}
 
@@ -544,7 +548,7 @@ pub fn build(b: *std.Build) !void {
 	install_exe.step.dependOn(&b.addInstallDirectory(.{
 		.exclude_extensions = &.{ "Makefile", ".am", ".in" },
 		.source_dir = upstream.path("doc"),
-		.install_subdir = "doc",
+		.install_subdir = "lib/pd/doc",
 		.install_dir = .prefix,
 	}).step);
 }
