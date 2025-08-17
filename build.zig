@@ -194,24 +194,24 @@ fn baseModule(
 }
 
 fn baseFiles(
-	b: *std.Build,
+	mem: std.mem.Allocator,
 	opt: Options,
 ) !StringList {
-	var files: StringList = .init(b.allocator);
-	try files.appendSlice(&src.core);
-	try files.appendSlice(if (opt.fftw) &src.fftw else &src.fftsg);
+	var files: StringList = try .initCapacity(mem, 0);
+	try files.appendSlice(mem, &src.core);
+	try files.appendSlice(mem, if (opt.fftw) &src.fftw else &src.fftsg);
 	return files;
 }
 
 fn baseFlags(
-	b: *std.Build,
+	mem: std.mem.Allocator,
 	os: std.Target.Os.Tag,
 	optimize: std.builtin.OptimizeMode,
 ) !StringList {
-	var flags: StringList = .init(b.allocator);
-	try flags.append("-fno-sanitize=undefined");
+	var flags: StringList = try .initCapacity(mem, 0);
+	try flags.append(mem, "-fno-sanitize=undefined");
 	if (optimize != .Debug) {
-		try flags.appendSlice(&.{
+		try flags.appendSlice(mem, &.{
 			"-ffast-math",
 			"-funroll-loops",
 			"-fomit-frame-pointer",
@@ -219,7 +219,7 @@ fn baseFlags(
 		});
 	}
 	if (os == .linux or os == .freebsd) {
-		try flags.appendSlice(&.{
+		try flags.appendSlice(mem, &.{
 			"-Wno-int-to-pointer-cast",
 			"-Wno-pointer-to-int-cast",
 		});
@@ -286,8 +286,10 @@ pub fn build(b: *std.Build) !void {
 	const root = upstream.path(".");
 	const os = target.result.os.tag;
 	const opt: Options = .init(b, os);
-	var flags = try baseFlags(b, os, optimize);
-	defer flags.deinit();
+
+	const mem = b.allocator;
+	var flags = try baseFlags(mem, os, optimize);
+	defer flags.deinit(mem);
 
 	//---------------------------------------------------------------------------
 	// Zig extern module
@@ -311,18 +313,18 @@ pub fn build(b: *std.Build) !void {
 			mod.linkSystemLibrary("m", .{});
 		}
 
-		var files = try baseFiles(b, opt);
-		defer files.deinit();
+		var files = try baseFiles(mem, opt);
+		defer files.deinit(mem);
 
-		try files.appendSlice(&src.lib);
-		try files.appendSlice(&src.dummy);
+		try files.appendSlice(mem, &src.lib);
+		try files.appendSlice(mem, &src.dummy);
 		mod.addCMacro("USEAPI_DUMMY", "1");
 		if (opt.lib.extra) {
-			try files.appendSlice(&src.extra);
+			try files.appendSlice(mem, &src.extra);
 			mod.addCMacro("LIBPD_EXTRA", "1");
 		}
 		if (opt.lib.utils) {
-			try files.appendSlice(&src.util);
+			try files.appendSlice(mem, &src.util);
 		}
 
 		if (opt.lib.multi) {
@@ -371,32 +373,32 @@ pub fn build(b: *std.Build) !void {
 			mod.linkSystemLibrary("m", .{});
 		}
 
-		var files = try baseFiles(b, opt);
-		defer files.deinit();
+		var files = try baseFiles(mem, opt);
+		defer files.deinit(mem);
 
-		try files.appendSlice(&src.standalone);
-		try files.appendSlice(&src.entry);
+		try files.appendSlice(mem, &src.standalone);
+		try files.appendSlice(mem, &src.entry);
 
 		var have_audio_api: bool = false;
 		if (opt.alsa) {
-			try files.appendSlice(&src.alsa);
+			try files.appendSlice(mem, &src.alsa);
 			mod.addCMacro("USEAPI_ALSA", "1");
 			mod.linkSystemLibrary("asound", .{});
 			have_audio_api = true;
 		}
 		if (opt.oss) {
-			try files.appendSlice(&src.oss);
+			try files.appendSlice(mem, &src.oss);
 			mod.addCMacro("USEAPI_OSS", "1");
 			have_audio_api = true;
 		}
 		if (opt.jack) {
-			try files.appendSlice(&src.jack);
+			try files.appendSlice(mem, &src.jack);
 			mod.addCMacro("USEAPI_JACK", "1");
 			mod.linkSystemLibrary("jack", .{});
 			have_audio_api = true;
 		}
 		if (opt.portaudio.enabled) {
-			try files.appendSlice(&src.portaudio);
+			try files.appendSlice(mem, &src.portaudio);
 			mod.addCMacro("USEAPI_PORTAUDIO", "1");
 			if (opt.portaudio.local) {
 				const pa = @import("build.portaudio.zig");
@@ -409,9 +411,9 @@ pub fn build(b: *std.Build) !void {
 
 		if (!have_audio_api) {
 			mod.addCMacro("USEAPI_DUMMY", "1");
-			try files.appendSlice(&src.dummy);
+			try files.appendSlice(mem, &src.dummy);
 		} else if (opt.jack or opt.portaudio.enabled) {
-			try files.appendSlice(&src.paring);
+			try files.appendSlice(mem, &src.paring);
 		}
 
 		mod.addCSourceFiles(.{

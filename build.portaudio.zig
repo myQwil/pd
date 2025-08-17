@@ -2,7 +2,6 @@
 
 const std = @import("std");
 const LinkMode = std.builtin.LinkMode;
-const StringList = std.ArrayList([]const u8);
 
 pub const HostApi = enum {
 	alsa,
@@ -59,16 +58,18 @@ pub fn library(
 	mod.addIncludePath(upstream.path("include"));
 	mod.addIncludePath(upstream.path("src/common"));
 
-	var files: StringList = .init(b.allocator);
-	defer files.deinit();
-	try files.appendSlice(&src.common);
+	const mem = b.allocator;
+	var files: std.ArrayList([]const u8) = try .initCapacity(mem, 0);
+	defer files.deinit(mem);
+
+	try files.appendSlice(mem, &src.common);
 
 	switch (os) {
 		.macos => {
 			for (host_apis) |api| {
 				switch (api) {
 					.coreaudio => {
-						try files.appendSlice(&src.hostapi_coreaudio);
+						try files.appendSlice(mem, &src.hostapi_coreaudio);
 						mod.addCMacro("PA_USE_COREAUDIO", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/coreaudio"));
 						mod.linkFramework("AudioToolbox", .{});
@@ -79,37 +80,37 @@ pub fn library(
 					else => unsupportedHostApi(os, api),
 				}
 			}
-			try files.appendSlice(&src.os_unix);
+			try files.appendSlice(mem, &src.os_unix);
 			mod.addIncludePath(upstream.path("src/os/unix"));
 		},
 		.linux => {
 			for (host_apis) |api| {
 				switch (api) {
 					.alsa => {
-						try files.appendSlice(&src.hostapi_alsa);
+						try files.appendSlice(mem, &src.hostapi_alsa);
 						mod.addCMacro("PA_USE_ALSA", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/alsa"));
 						mod.linkSystemLibrary("asound", .{});
 					},
 					.asihpi => {
-						try files.appendSlice(&src.hostapi_asihpi);
+						try files.appendSlice(mem, &src.hostapi_asihpi);
 						mod.addCMacro("PA_USE_ASIHPI", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/asihpi"));
 						mod.linkSystemLibrary("asihpi", .{});
 					},
 					.jack => {
-						try files.appendSlice(&src.hostapi_jack);
+						try files.appendSlice(mem, &src.hostapi_jack);
 						mod.addCMacro("PA_USE_JACK", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/jack"));
 						mod.linkSystemLibrary("jack", .{});
 					},
 					.oss => {
-						try files.appendSlice(&src.hostapi_oss);
+						try files.appendSlice(mem, &src.hostapi_oss);
 						mod.addCMacro("PA_USE_OSS", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/oss"));
 					},
 					.pulseaudio => {
-						try files.appendSlice(&src.hostapi_pulseaudio);
+						try files.appendSlice(mem, &src.hostapi_pulseaudio);
 						mod.addCMacro("PA_USE_PULSEAUDIO", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/pulseaudio"));
 						mod.linkSystemLibrary("pulse", .{});
@@ -117,7 +118,7 @@ pub fn library(
 					else => unsupportedHostApi(os, api),
 				}
 			}
-			try files.appendSlice(&src.os_unix);
+			try files.appendSlice(mem, &src.os_unix);
 			mod.addIncludePath(upstream.path("src/os/unix"));
 		},
 		.windows => {
@@ -132,29 +133,29 @@ pub fn library(
 						std.process.exit(1);
 					},
 					.dsound => {
-						try files.appendSlice(&src.hostapi_dsound);
+						try files.appendSlice(mem, &src.hostapi_dsound);
 						mod.addCMacro("PA_USE_DS", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/dsound"));
 					},
 					.wasapi => {
-						try files.appendSlice(&src.hostapi_wasapi);
+						try files.appendSlice(mem, &src.hostapi_wasapi);
 						mod.addCMacro("PA_USE_WASAPI", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/wasapi"));
 					},
 					.wdmks => {
-						try files.appendSlice(&src.hostapi_wdmks);
+						try files.appendSlice(mem, &src.hostapi_wdmks);
 						mod.addCMacro("PA_USE_WDMKS", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/wdmks"));
 					},
 					.wmme => {
-						try files.appendSlice(&src.hostapi_wmme);
+						try files.appendSlice(mem, &src.hostapi_wmme);
 						mod.addCMacro("PA_USE_WMME", "1");
 						mod.addIncludePath(upstream.path("src/hostapi/wmme"));
 					},
 					else => unsupportedHostApi(os, api),
 				}
 			}
-			try files.appendSlice(&src.os_win);
+			try files.appendSlice(mem, &src.os_win);
 			mod.addIncludePath(upstream.path("src/os/win"));
 			mod.linkSystemLibrary("winmm", .{});
 			mod.linkSystemLibrary("ole32", .{});
