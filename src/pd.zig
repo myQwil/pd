@@ -815,41 +815,17 @@ pub const Pd = extern struct {
 
 // ----------------------------------- Post ------------------------------------
 // -----------------------------------------------------------------------------
-const Writer = std.Io.Writer;
 pub const post = struct {
-	var buf: [max_string:0]u8 = undefined;
-
-	inline fn write(dest: [*:0]const u8, fmt: [*:0]const u8, args: anytype) void {
-		if (this().stuff.printhook) |print| {
-			print(&buf);
-		} else if (stf.sys_printtostderr != 0 or !stf.haveTkProc()) {
-			std.debug.print("{s}", .{ &buf });
-		} else {
-			vMess(dest, fmt, args);
-		}
+	pub fn do(fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, post_, .{ fmt } ++ args);
 	}
+	const post_ = @extern(
+		*const fn([*:0]const u8, ...) callconv(.c) void, .{ .name = "post" });
 
-	inline fn dopost(comptime fmt: []const u8, args: anytype) void {
-		var writer: Writer = .fixed(&buf);
-		writer.print(fmt, args) catch {
-			@memcpy(buf[buf.len - 3..], "..\n");
-			writer.end = buf.len;
-		};
-		buf[writer.end] = 0;
-		write("::pdwindow::post", "s", .{ &buf });
+	pub fn start(fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, startpost, .{ fmt } ++ args);
 	}
-
-	pub fn do(comptime fmt: []const u8, args: anytype) void {
-		dopost(fmt ++ "\n", args);
-	}
-
-	pub fn start(comptime fmt: []const u8, args: anytype) void {
-		dopost(fmt, args);
-	}
-
-	pub fn end() void {
-		dopost("\n", .{});
-	}
+	extern fn startpost([*:0]const u8, ...) void;
 
 	pub const string = poststring;
 	extern fn poststring([*:0]const u8) void;
@@ -862,66 +838,89 @@ pub const post = struct {
 	}
 	extern fn postatom(c_uint, [*]const Atom) void;
 
+	pub const end = endpost;
+	extern fn endpost() void;
+
+	pub fn bug(fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, bug_, .{ fmt } ++ args);
+	}
+	const bug_ = @extern(
+		*const fn([*:0]const u8, ...) callconv(.c) void, .{ .name = "bug" });
+
+	pub fn err(self: ?*const anyopaque, fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, pd_error, .{ self, fmt } ++ args);
+	}
+	extern fn pd_error(?*const anyopaque, fmt: [*:0]const u8, ...) void;
+
 	pub const LogLevel = enum(c_uint) {
-		critical,
-		err,
-		normal,
-		debug,
-		verbose,
+		critical = 0,
+		err = 1,
+		normal = 2,
+		debug = 3,
+		verbose = 4,
 		_,
 	};
 
 	pub fn log(
-		object: ?*const anyopaque,
-		level: LogLevel,
-		comptime fmt: []const u8,
-		args: anytype,
+		obj: ?*const anyopaque,
+		lvl: LogLevel,
+		fmt: [*:0]const u8,
+		args: anytype
 	) void {
-		const i: c_uint = @intFromEnum(level);
-		var writer: Writer = .fixed(&buf);
-		switch (level) {
-			.critical, .normal, .debug => {},
-			.err => writer.writeAll("error: ") catch unreachable,
-			else => {
-				if (stf.sys_verbose == 0) {
-					return;
-				} else {
-					writer.print("verbose({}): ", .{ i }) catch unreachable;
-				}
-			},
-		}
-		const prefix = writer.end;
-		writer.print(fmt ++ "\n", args) catch {
-			@memcpy(buf[buf.len - 3..], "..\n");
-			writer.end = buf.len;
-		};
-		buf[writer.end] = 0;
-		write("::pdwindow::logpost", "ois", .{ object, i, buf[prefix..].ptr });
+		@call(.auto, logpost, .{ obj, lvl, fmt } ++ args);
 	}
-
-	pub fn err(obj: ?*const anyopaque, comptime fmt: []const u8, args: anytype) void {
-		log(obj, .err, fmt, args);
-	}
+	extern fn logpost(?*const anyopaque, LogLevel, [*:0]const u8, ...) void;
 };
 
-pub var fmt_buf: [max_string:0]u8 = undefined;
+const Writer = std.Io.Writer;
+pub var buffer: [max_string:0]u8 = undefined;
+
+pub fn write(
+	object: ?*const anyopaque,
+	level: post.LogLevel,
+	msg: []const u8,
+) void {
+	const i: c_uint = @intFromEnum(level);
+	var buf: [max_string:0]u8 = undefined;
+	var writer: Writer = .fixed(&buf);
+
+	switch (level) {
+		.critical, .normal, .debug => {},
+		.err => writer.writeAll("error: ") catch unreachable,
+		else => {
+			if (stf.sys_verbose == 0) {
+				return;
+			} else {
+				writer.print("verbose({}): ", .{ i }) catch unreachable;
+			}
+		},
+	}
+	const prefix = writer.end;
+	writer.print("{s}\n", .{ msg }) catch {
+		@memcpy(buf[buf.len - 3..], "..\n");
+		writer.end = buf.len;
+	};
+	buf[writer.end] = 0;
+
+	if (this().stuff.printhook) |print| {
+		print(&buf);
+	} else if (stf.sys_printtostderr != 0 or !stf.haveTkProc()) {
+		std.debug.print("{s}", .{ &buf });
+	} else {
+		vMess("::pdwindow::logpost", "ois", .{ object, i, buf[prefix..].ptr });
+	}
+}
+
 const gmin = @exp(@log(10.0) * -4);
 const gmax = @exp(@log(10.0) * 6);
 
-pub fn writeG(stream: *Writer, f: Float) !void {
-	const g = @abs(f);
-	if (g != 0 and (g < gmin or gmax <= g)) {
+pub fn g(stream: *Writer, f: Float) !void {
+	const abs = @abs(f);
+	if (abs != 0 and (abs < gmin or gmax <= abs)) {
 		try stream.print("{e}", .{ f });
 	} else {
 		try stream.print("{d}", .{ f });
 	}
-}
-
-/// Good for when you only need to format 1 number. Otherwise, use `writeG()`
-pub fn fmtG(f: Float) []const u8 {
-	var writer: Writer = .fixed(&fmt_buf);
-	writeG(&writer, f) catch return "?";
-	return writer.buffered();
 }
 
 

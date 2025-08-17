@@ -27,7 +27,7 @@ const Sesom = extern struct {
 
 	fn initC(f: pd.Float) callconv(.c) ?*Sesom {
 		return init(f) catch |e| {
-			pd.post.err(null, name ++ ": {s}", .{ @errorName(e) });
+			pd.post.err(null, name ++ ": %s", .{ @errorName(e).ptr });
 			return null;
 		};
 	}
@@ -40,5 +40,5 @@ const Sesom = extern struct {
 
 export fn sesom_setup() void {
 	Sesom.setup() catch |e|
-		pd.post.err(null, "{s}: {s}", .{ @src().fn_name, @errorName(e) });
+		pd.post.err(null, "%s: %s", .{ @src().fn_name.ptr, @errorName(e).ptr });
 }
