@@ -4,3 +4,7 @@ zig-out/
 
 # VSCode Folder
 .vscode/
+
+# Upstream Pd folder
+upstream/
+pure-data/
