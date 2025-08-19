@@ -19,7 +19,11 @@ const Symbol = m.Symbol;
 
 pub fn printStruct(T: type, name: [:0]const u8) void {
 	const info = @typeInfo(T).@"struct";
-	const Field = struct{ name: []const u8, offset: usize, type: type };
+	const Field = struct {
+		name: []const u8,
+		offset: usize,
+		type: type,
+	};
 	const fields: [info.fields.len]Field = comptime blk: {
 		var fields: [info.fields.len]Field = undefined;
 		for (info.fields, 0..) |field, i| {

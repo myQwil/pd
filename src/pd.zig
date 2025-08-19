@@ -827,6 +827,9 @@ pub const post = struct {
 	}
 	extern fn startpost([*:0]const u8, ...) void;
 
+	pub const end = endpost;
+	extern fn endpost() void;
+
 	pub const string = poststring;
 	extern fn poststring([*:0]const u8) void;
 
@@ -834,12 +837,9 @@ pub const post = struct {
 	extern fn postfloat(f: Float) void;
 
 	pub fn atom(av: []const Atom) void {
-		postatom(av.len, av.ptr);
+		postatom(@intCast(av.len), av.ptr);
 	}
 	extern fn postatom(c_uint, [*]const Atom) void;
-
-	pub const end = endpost;
-	extern fn endpost() void;
 
 	pub fn bug(fmt: [*:0]const u8, args: anytype) void {
 		@call(.auto, bug_, .{ fmt } ++ args);
@@ -871,57 +871,6 @@ pub const post = struct {
 	}
 	extern fn logpost(?*const anyopaque, LogLevel, [*:0]const u8, ...) void;
 };
-
-const Writer = std.Io.Writer;
-pub var buffer: [max_string:0]u8 = undefined;
-
-pub fn write(
-	object: ?*const anyopaque,
-	level: post.LogLevel,
-	msg: []const u8,
-) void {
-	const i: c_uint = @intFromEnum(level);
-	var buf: [max_string:0]u8 = undefined;
-	var writer: Writer = .fixed(&buf);
-
-	switch (level) {
-		.critical, .normal, .debug => {},
-		.err => writer.writeAll("error: ") catch unreachable,
-		else => {
-			if (stf.sys_verbose == 0) {
-				return;
-			} else {
-				writer.print("verbose({}): ", .{ i }) catch unreachable;
-			}
-		},
-	}
-	const prefix = writer.end;
-	writer.print("{s}\n", .{ msg }) catch {
-		@memcpy(buf[buf.len - 3..], "..\n");
-		writer.end = buf.len;
-	};
-	buf[writer.end] = 0;
-
-	if (this().stuff.printhook) |print| {
-		print(&buf);
-	} else if (stf.sys_printtostderr != 0 or !stf.haveTkProc()) {
-		std.debug.print("{s}", .{ &buf });
-	} else {
-		vMess("::pdwindow::logpost", "ois", .{ object, i, buf[prefix..].ptr });
-	}
-}
-
-const gmin = @exp(@log(10.0) * -4);
-const gmax = @exp(@log(10.0) * 6);
-
-pub fn g(stream: *Writer, f: Float) !void {
-	const abs = @abs(f);
-	if (abs != 0 and (abs < gmin or gmax <= abs)) {
-		try stream.print("{e}", .{ f });
-	} else {
-		try stream.print("{d}", .{ f });
-	}
-}
 
 
 // --------------------------------- Resample ----------------------------------
@@ -979,10 +928,6 @@ pub const Resample = extern struct {
 // ---------------------------------- Signal -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Signal = extern struct {
-	pub const Error = error {
-		SignalInit,
-	};
-
 	len: c_uint,
 	vec: [*]Sample,
 	srate: Float,
@@ -995,6 +940,10 @@ pub const Signal = extern struct {
 	nextfree: ?*Signal,
 	nextused: ?*Signal,
 	nalloc: c_uint,
+
+	pub const Error = error {
+		SignalInit,
+	};
 
 	/// Pop an audio signal from free list or create a new one.
 	///

@@ -1,18 +1,20 @@
 const pd = @import("pd");
 
+const Float = pd.Float;
+
 const Sesom = extern struct {
 	const name = "sesom";
 	var class: *pd.Class = undefined;
 
 	obj: pd.Object,
 	out: [2]*pd.Outlet,
-	f: pd.Float,
+	f: Float,
 
-	fn floatC(self: *Sesom, f: pd.Float) callconv(.c) void {
+	fn floatC(self: *Sesom, f: Float) callconv(.c) void {
 		self.out[if (f > self.f) 0 else 1].float(f);
 	}
 
-	inline fn init(f: pd.Float) !*Sesom {
+	inline fn init(f: Float) !*Sesom {
 		const self: *Sesom = @ptrCast(try class.pd());
 		const obj: *pd.Object = &self.obj;
 		errdefer obj.g.pd.deinit();
@@ -25,7 +27,7 @@ const Sesom = extern struct {
 		return self;
 	}
 
-	fn initC(f: pd.Float) callconv(.c) ?*Sesom {
+	fn initC(f: Float) callconv(.c) ?*Sesom {
 		return init(f) catch |e| {
 			pd.post.err(null, name ++ ": %s", .{ @errorName(e).ptr });
 			return null;
