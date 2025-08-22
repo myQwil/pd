@@ -467,14 +467,16 @@ pub const Scalar = extern struct {
 };
 
 pub const GStub = extern struct {
-	un: extern union {
-		glist: *GList,
-		array: *Array,
-	},
+	un: Union,
 	which: Type,
 	refcount: c_int,
 
-	const Type = enum(c_uint) {
+	pub const Union = extern union {
+		glist: *GList,
+		array: *Array,
+	};
+
+	pub const Type = enum(c_uint) {
 		none,
 		glist,
 		array,
@@ -482,12 +484,14 @@ pub const GStub = extern struct {
 };
 
 pub const GPointer = extern struct {
-	un: extern union {
-		scalar: *Scalar,
-		w: *Word,
-	},
+	un: Union,
 	valid: c_int,
 	stub: *GStub,
+
+	pub const Union = extern union {
+		scalar: *Scalar,
+		w: *Word,
+	};
 
 	pub const init = gpointer_init;
 	extern fn gpointer_init(*GPointer) void;
@@ -876,31 +880,27 @@ pub const post = struct {
 // --------------------------------- Resample ----------------------------------
 // -----------------------------------------------------------------------------
 pub const Resample = extern struct {
-	const Converter = enum(c_uint) {
-		zero_padding = 0,
-		zero_order_hold = 1,
-		linear = 2,
-	};
-
 	/// unused
 	method: Converter,
-
 	/// downsampling factor
 	downsample: c_uint,
 	/// upsampling factor
 	upsample: c_uint,
-
 	/// here we hold the resampled data
 	vec: [*]Sample,
 	n: c_uint,
-
 	/// coefficients for filtering...
 	coeffs: [*]Sample,
 	coef_size: c_uint,
-
 	/// buffer for filtering
 	buffer: [*]Sample,
 	buf_size: c_uint,
+
+	pub const Converter = enum(c_uint) {
+		zero_padding = 0,
+		zero_order_hold = 1,
+		linear = 2,
+	};
 
 	pub const deinit = resample_free;
 	extern fn resample_free(*Resample) void;
@@ -1314,10 +1314,6 @@ test bigOrSmall {
 }
 
 pub const Instance = extern struct {
-	pub const Midi = opaque {};
-	pub const Inter = opaque {};
-	pub const Ugen = opaque {};
-
 	/// global time in Pd ticks
 	systime: f64,
 	/// linked list of set clocks
@@ -1342,8 +1338,11 @@ pub const Instance = extern struct {
 	stuff: *stf.Instance,
 	/// most recently created object
 	newest: *Pd,
-
 	// islocked: c_uint, // should only exist if threads are enabled
+
+	pub const Midi = opaque {};
+	pub const Inter = opaque {};
+	pub const Ugen = opaque {};
 };
 pub extern const pd_maininstance: Instance;
 

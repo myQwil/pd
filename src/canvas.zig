@@ -1,20 +1,21 @@
-const pd = @import("pd.zig");
+const m = @import("pd.zig");
+const iem = m.iem;
 
-const Atom = pd.Atom;
-const Float = pd.Float;
-const Symbol = pd.Symbol;
-const Word = pd.Word;
+const Atom = m.Atom;
+const Float = m.Float;
+const Symbol = m.Symbol;
+const Word = m.Word;
 
-const GPointer = pd.GPointer;
-const GStub = pd.GStub;
-const GObj = pd.GObj;
-const Object = pd.Object;
-const BinBuf = pd.BinBuf;
-const Clock = pd.Clock;
-const Inlet = pd.Inlet;
-const Outlet = pd.Outlet;
-const Scalar = pd.Scalar;
-const Pd = pd.Pd;
+const GPointer = m.GPointer;
+const GStub = m.GStub;
+const GObj = m.GObj;
+const Object = m.Object;
+const BinBuf = m.BinBuf;
+const Clock = m.Clock;
+const Inlet = m.Inlet;
+const Outlet = m.Outlet;
+const Scalar = m.Scalar;
+const Pd = m.Pd;
 
 pub const io_width = 7;
 pub const i_height = 3;
@@ -42,7 +43,9 @@ const OutConnect = opaque {};
 
 pub const UpdateHeader = extern struct {
 	next: ?*UpdateHeader,
-	flags: packed struct(c_uint) {
+	flags: Flags,
+
+	pub const Flags = packed struct(c_uint) {
 		/// true if array, false if glist
 		array: bool,
 		/// true if we're queued
@@ -50,7 +53,7 @@ pub const UpdateHeader = extern struct {
 		_unused: @Type(.{.int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 2,
 		}}),
-	},
+	};
 };
 
 const Selection = extern struct {
@@ -94,7 +97,15 @@ pub const Editor = extern struct {
 	selectline_index2: c_int,
 	selectline_inno: c_int,
 	selectline_tag: *OutConnect,
-	flags: packed struct(c_uint) {
+	flags: Flags,
+	/// clock to filter GUI move messages
+	clock: *Clock,
+	/// xpos for next move event
+	xnew: c_int,
+	/// ypos for next move event
+	ynew: c_int,
+
+	pub const Flags = packed struct(c_uint) {
 		/// action to take on motion
 		onmotion: OnMotion,
 		/// true if mouse has moved since click
@@ -106,29 +117,23 @@ pub const Editor = extern struct {
 		_unused: @Type(.{.int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 6,
 		}}),
-	},
-	/// clock to filter GUI move messages
-	clock: *Clock,
-	/// xpos for next move event
-	xnew: c_int,
-	/// ypos for next move event
-	ynew: c_int,
+	};
 
-	const OnMotion = enum(u3) {
+	pub const OnMotion = enum(u3) {
 		/// do nothing
-		none,
+		none = 0,
 		/// drag the selection around
-		move,
+		move = 1,
 		/// make a connection
-		connect,
+		connect = 2,
 		/// selection region
-		region,
+		region = 3,
 		/// send on to e_grab
-		passout,
+		passout = 4,
 		/// drag in text editor to alter selection
-		dragtext,
+		dragtext = 5,
 		/// drag to resize
-		resize,
+		resize = 6,
 	};
 
 	pub const Instance = opaque {};
@@ -148,15 +153,6 @@ const Tick = extern struct {
 };
 
 pub const GList = extern struct {
-	pub const Error = error {
-		GListOpen,
-	};
-
-	pub const Environment = opaque {};
-
-	pub const MotionFn = fn (*anyopaque, Float, Float, Float) callconv(.c) void;
-	pub const KeyFn = fn (*anyopaque, *Symbol, Float) callconv(.c) void;
-
 	/// header in case we're a glist
 	obj: Object,
 	/// the actual data
@@ -217,7 +213,15 @@ pub const GList = extern struct {
 	next: ?*GList,
 	/// root canvases and abstractions only
 	env: *Environment,
-	flags: packed struct(c_uint) {
+	flags: Flags,
+	/// zoom factor (integer zoom-in only)
+	zoom: c_uint,
+	/// private data
+	privatedata: *anyopaque,
+
+	pub const Environment = opaque {};
+
+	pub const Flags = packed struct(c_uint) {
 		/// true if we own a window
 		havewindow: bool,
 		/// true if, moreover, it's "mapped"
@@ -245,11 +249,14 @@ pub const GList = extern struct {
 		_unused: @Type(.{.int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 12,
 		}}),
-	},
-	/// zoom factor (integer zoom-in only)
-	zoom: c_uint,
-	/// private data
-	privatedata: *anyopaque,
+	};
+
+	pub const MotionFn = fn (*anyopaque, Float, Float, Float) callconv(.c) void;
+	pub const KeyFn = fn (*anyopaque, *Symbol, Float) callconv(.c) void;
+
+	pub const Error = error {
+		GListOpen,
+	};
 
 	pub const Instance = extern struct {
 		/// more, semi-private stuff
@@ -322,7 +329,9 @@ pub const GList = extern struct {
 
 	pub const grab = glist_grab;
 	extern fn glist_grab(
-		*GList, *GObj, ?*const MotionFn, ?*const KeyFn, xpos: c_int, ypos: c_int,
+		*GList, *GObj,
+		?*const MotionFn, ?*const KeyFn,
+		xpos: c_int, ypos: c_int,
 	) void;
 
 	pub fn isVisible(self: *GList) bool {
@@ -509,7 +518,7 @@ pub const GList = extern struct {
 	}
 	extern fn canvas_getargs(*c_uint, *[*]Atom) void;
 
-	pub fn undoSetState(
+	pub fn setUndoState(
 		self: *GList, x: *Pd, s: *Symbol,
 		undo: []Atom, redo: []Atom,
 	) void {
@@ -531,11 +540,11 @@ pub const GList = extern struct {
 // -----------------------------------------------------------------------------
 pub const LoadBang = enum(u2) {
 	/// loaded and connected to parent patch
-	load,
+	load = 0,
 	/// loaded but not yet connected to parent patch
-	init,
+	init = 1,
 	/// about to close
-	close,
+	close = 2,
 };
 
 
@@ -571,18 +580,18 @@ pub const ClickFn = fn (
 ) callconv(.c) c_int;
 
 pub const DisplaceFn = fn (*GObj, *GList, c_int, c_int) callconv(.c) void;
-pub const SelectFn = fn (*GObj, *GList, c_int) callconv(.c) void;
-pub const ActivateFn = fn (*GObj, *GList, c_int) callconv(.c) void;
+pub const SelectFn = fn (*GObj, *GList, c_uint) callconv(.c) void;
+pub const ActivateFn = fn (*GObj, *GList, c_uint) callconv(.c) void;
 pub const DeleteFn = fn (*GObj, *GList) callconv(.c) void;
-pub const VisFn = fn (*GObj, *GList, c_int) callconv(.c) void;
+pub const VisFn = fn (*GObj, *GList, c_uint) callconv(.c) void;
 
 pub const WidgetBehavior = extern struct {
 	getrect: ?*const GetRectFn = null,
-	displace: ?*const DisplaceFn = null,
-	select: ?*const SelectFn = null,
+	displace: ?*const DisplaceFn = &iem.displace,
+	select: ?*const SelectFn = &iem.select,
 	activate: ?*const ActivateFn = null,
-	delete: ?*const DeleteFn = null,
-	vis: ?*const VisFn = null,
+	delete: ?*const DeleteFn = &iem.delete,
+	vis: ?*const VisFn = &iem.vis,
 	click: ?*const ClickFn = null,
 };
 

@@ -1,13 +1,13 @@
-const pd = @import("pd.zig");
+const m = @import("pd.zig");
 const cnv = @import("canvas.zig");
 
 const Class = @import("imp.zig").Class;
-const Atom = pd.Atom;
-const Float = pd.Float;
-const Symbol = pd.Symbol;
-const Object = pd.Object;
+const Atom = m.Atom;
+const Float = m.Float;
+const Symbol = m.Symbol;
+const Object = m.Object;
 const GList = cnv.GList;
-const GObj = pd.GObj;
+const GObj = m.GObj;
 
 pub const min_size = 8;
 pub const max_size = 1000;
@@ -35,19 +35,18 @@ pub fn isSymbolOrFloat(av: []Atom) bool {
 
 // ------------------------------------ Gui ------------------------------------
 // -----------------------------------------------------------------------------
-const DrawMode = enum(c_uint) {
-	update,
-	move,
-	new,
-	select,
-	erase,
-	config,
-	io,
+pub const DrawMode = enum(c_uint) {
+	update = 0,
+	move = 1,
+	new = 2,
+	select = 3,
+	erase = 4,
+	config = 5,
+	io = 6,
 };
 
 pub const IemFn = fn (*anyopaque, *GList, DrawMode) callconv(.c) void;
 pub const DrawFn = fn (*anyopaque, *GList) callconv(.c) void;
-const Private = opaque {};
 
 pub const DrawFunctions = extern struct {
 	new: ?*const DrawFn = null,
@@ -87,8 +86,11 @@ pub const FontStyleFlags = packed struct(c_uint) {
 		times = 2,
 	};
 
-	pub const fromInt = iem_inttofstyle;
+	pub const set = iem_inttofstyle;
 	extern fn iem_inttofstyle(*FontStyleFlags, c_uint) void;
+
+	pub const toInt = iem_fstyletoint;
+	extern fn iem_fstyletoint(*FontStyleFlags) c_uint;
 };
 
 pub const InitSymArgs = packed struct(c_uint) {
@@ -104,28 +106,14 @@ pub const InitSymArgs = packed struct(c_uint) {
 		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 28,
 	}}),
 
-	pub const fromInt = iem_inttosymargs;
+	pub const set = iem_inttosymargs;
 	extern fn iem_inttosymargs(*InitSymArgs, c_uint) void;
+
+	pub const toInt = iem_symargstoint;
+	extern fn iem_symargstoint(*InitSymArgs) c_uint;
 };
 
 pub const Gui = extern struct {
-	pub const Error = error {
-		GuiInit,
-	};
-
-	pub const Mode = enum(c_uint) {
-		linear = 0,
-		logarithmic = 1,
-	};
-
-	pub inline fn defaultSize() c_uint {
-		return pd.zoomFontHeight(cnv.GList.current().font, 1, false) + 2 + 3;
-	}
-
-	pub inline fn defaultScale() Float {
-		return @as(Float, @floatFromInt(defaultSize())) / 15;
-	}
-
 	obj: Object,
 	glist: *GList,
 	draw: ?*const IemFn,
@@ -134,7 +122,7 @@ pub const Gui = extern struct {
 	private: *Private,
 	ldx: c_int,
 	ldy: c_int,
-	font: [pd.max_string-1:0]u8,
+	font: [m.max_string-1:0]u8,
 	fsf: FontStyleFlags,
 	fontsize: c_uint,
 	isa: InitSymArgs,
@@ -149,6 +137,21 @@ pub const Gui = extern struct {
 	lab_unexpanded: *Symbol,
 	binbufindex: c_uint,
 	labelbindex: c_uint,
+
+	pub const Private = opaque {};
+
+	pub const Error = error {
+		GuiInit,
+	};
+
+	pub fn defaultSize() c_uint {
+		const current = cnv.GList.current() orelse return 0;
+		return m.zoomFontHeight(current.font, 1, false) + 2 + 3;
+	}
+
+	pub fn defaultScale() Float {
+		return @as(Float, @floatFromInt(defaultSize())) / 15;
+	}
 
 	pub const deinit = iemgui_free;
 	extern fn iemgui_free(*Gui) void;
@@ -239,39 +242,53 @@ pub const Gui = extern struct {
 	}
 	extern fn iemgui_label_font(*anyopaque, *Gui, *Symbol, c_uint, [*]Atom) void;
 
+	pub const SendToGui = enum(c_int) {
+		auto = -1,
+		never = 0,
+		always = 1,
+	};
+
 	/// update the label (both internally and on the GUI)
 	pub fn doLabel(
 		self: *Gui,
 		x: *anyopaque,
 		s: *Symbol,
-		send_to_gui: enum(c_int) {
-			auto = -1,
-			never = 0,
-			always = 1,
-		},
+		send_to_gui: SendToGui,
 	) void {
 		iemgui_dolabel(x, self, s, @intFromEnum(send_to_gui));
 	}
 	extern fn iemgui_dolabel(*anyopaque, *Gui, *Symbol, c_int) void;
+
+	pub const Scale = enum(c_uint) {
+		linear = 0,
+		logarithmic = 1,
+	};
+
+	pub const RangeCheck = enum(c_uint) {
+		none = 0,
+		toggle = 1,
+		flash = 2,
+	};
+
+	pub const Steady = enum(c_int) {
+		none = -1,
+		jump = 0,
+		steady = 1,
+	};
 
 	pub fn newDialog(
 		self: *Gui, x: *anyopaque,
 		objname: [*:0]const u8,
 		width: Float, width_min: Float,
 		height: Float, height_min: Float,
-		range_min: Float, range_max: Float,
-		range_checkmode: enum(c_uint) {
-			none = 0,
-			toggle = 1,
-			flash = 2,
-		},
-		mode: Mode,
-		mode_label0: [*:0]const u8, mode_label1: [*:0]const u8,
-		canloadbang: bool, steady: c_int, number: c_int
+		range_min: Float, range_max: Float, range_checkmode: RangeCheck,
+		scale: Scale, mode_label0: [*:0]const u8, mode_label1: [*:0]const u8,
+		canloadbang: bool, steady: Steady, number: c_int,
 	) void {
 		iemgui_new_dialog(x, self, objname, width, width_min, height, height_min,
-			range_min, range_max, @intFromEnum(range_checkmode), @intFromEnum(mode),
-			mode_label0, mode_label1, @intFromBool(canloadbang), steady, number);
+			range_min, range_max, @intFromEnum(range_checkmode), @intFromEnum(scale),
+			mode_label0, mode_label1, @intFromBool(canloadbang),
+			@intFromEnum(steady), number);
 	}
 	extern fn iemgui_new_dialog(
 		*anyopaque, *Gui, [*:0]const u8,
@@ -285,8 +302,8 @@ pub const Gui = extern struct {
 	extern fn iemgui_setdialogatoms(*Gui, c_uint, [*]Atom) void;
 
 	/// Returns a sendable/receivable bit mask.
-	pub fn dialog(self: *Gui, srl: []*Symbol, av: []Atom) u2 {
-		return @intCast(iemgui_dialog(self, srl.ptr, @intCast(av.len), av.ptr));
+	pub fn dialog(self: *Gui, srl: [*]*Symbol, av: []Atom) u2 {
+		return @intCast(iemgui_dialog(self, srl, @intCast(av.len), av.ptr));
 	}
 	extern fn iemgui_dialog(*Gui, [*]*Symbol, c_uint, [*]Atom) c_uint;
 

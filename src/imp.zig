@@ -61,20 +61,6 @@ pub const MethodEntry = extern struct {
 };
 
 pub const Class = extern struct {
-	pub const Error = error {
-		ClassInit,
-	};
-
-	pub const BangFn = fn (*Pd) callconv(.c) void;
-	pub const PointerFn = fn (*Pd, *GPointer) callconv(.c) void;
-	pub const FloatFn = fn (*Pd, Float) callconv(.c) void;
-	pub const SymbolFn = fn (*Pd, *Symbol) callconv(.c) void;
-	pub const ListFn = fn (*Pd, ?*Symbol, c_uint, [*]Atom) callconv(.c) void;
-	pub const AnyFn = fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.c) void;
-	pub const FreeFn = fn (*Class) callconv(.c) void;
-	pub const SaveFn = fn (*GObj, *BinBuf) callconv(.c) void;
-	pub const PropertiesFn = fn (*GObj, *cnv.GList) callconv(.c) void;
-
 	name: *Symbol,
 	helpname: *Symbol,
 	externdir: *Symbol,
@@ -94,7 +80,20 @@ pub const Class = extern struct {
 	fn_properties: ?*const PropertiesFn,
 	next: ?*Class,
 	float_signal_in: c_uint,
-	flags: packed struct(u8) {
+	flags: Flags,
+	fn_free: ?*const FreeFn,
+
+	pub const BangFn = fn (*Pd) callconv(.c) void;
+	pub const PointerFn = fn (*Pd, *GPointer) callconv(.c) void;
+	pub const FloatFn = fn (*Pd, Float) callconv(.c) void;
+	pub const SymbolFn = fn (*Pd, *Symbol) callconv(.c) void;
+	pub const ListFn = fn (*Pd, ?*Symbol, c_uint, [*]Atom) callconv(.c) void;
+	pub const AnyFn = fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.c) void;
+	pub const FreeFn = fn (*Class) callconv(.c) void;
+	pub const SaveFn = fn (*GObj, *BinBuf) callconv(.c) void;
+	pub const PropertiesFn = fn (*GObj, *cnv.GList) callconv(.c) void;
+
+	pub const Flags = packed struct(u8) {
 		/// true if is a gobj
 		gobj: bool,
 		/// true if we have a t_object header
@@ -110,8 +109,11 @@ pub const Class = extern struct {
 		/// don't promote the main (left) inlet to signals
 		no_promote_left: bool,
 		_unused: u1,
-	},
-	fn_free: ?*const FreeFn,
+	};
+
+	pub const Error = error {
+		ClassInit,
+	};
 
 	pub const Options = struct {
 		/// non-canvasable pd such as an inlet
@@ -142,6 +144,7 @@ pub const Class = extern struct {
 	};
 
 	pub const pd = m.Pd.init;
+	pub const gui = m.iem.Gui.init;
 
 	pub const deinit = class_free;
 	extern fn class_free(c: *Class) void;
@@ -229,7 +232,7 @@ pub const Class = extern struct {
 		comptime args: []const Atom.Type,
 		new_method: ?*const m.NewFn(T, args),
 		free_method: ?*const fn(*T) callconv(.c) void,
-		options: Class.Options,
+		options: Options,
 	) Error!*Class {
 		// printStruct(T, name); // uncomment this to view struct field order
 		const sym: *Symbol = .gen(name.ptr);

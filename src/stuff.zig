@@ -1,7 +1,7 @@
-const pd = @import("pd.zig");
+const m = @import("pd.zig");
 
-const Float = pd.Float;
-const Sample = pd.Sample;
+const Float = m.Float;
+const Sample = m.Sample;
 
 pub const PrintHook = fn ([*:0]const u8) callconv(.c) void;
 
