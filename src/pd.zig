@@ -567,28 +567,6 @@ pub const Inlet = opaque {
 		return pointerinlet_new(obj, gp) orelse Error.InletInitPointer;
 	}
 	extern fn pointerinlet_new(*Object, *GPointer) ?*Inlet;
-
-	pub inline fn initFloatArg(
-		obj: *Object,
-		fp: *Float,
-		index: usize,
-		av: []const Atom,
-		fallback: Float,
-	) Error!*Inlet {
-		fp.* = floatArg(index, av) catch fallback;
-		return .initFloat(obj, fp);
-	}
-
-	pub inline fn initSymbolArg(
-		obj: *Object,
-		sp: **Symbol,
-		index: usize,
-		av: []const Atom,
-		fallback: *Symbol,
-	) Error!*Inlet {
-		sp.* = symbolArg(index, av) catch fallback;
-		return .initSymbol(obj, sp);
-	}
 };
 
 
@@ -684,8 +662,6 @@ pub const Object = extern struct {
 	pub const inletSymbol = Inlet.initSymbol;
 	pub const inletSignal = Inlet.initSignal;
 	pub const inletPointer = Inlet.initPointer;
-	pub const inletFloatArg = Inlet.initFloatArg;
-	pub const inletSymbolArg = Inlet.initSymbolArg;
 };
 
 
