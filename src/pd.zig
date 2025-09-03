@@ -297,7 +297,7 @@ pub const BinBuf = opaque {
 	extern fn binbuf_read_via_canvas(*BinBuf, [*:0]const u8, *const GList, Options) c_int;
 
 	pub fn write(
-		self: *BinBuf,
+		self: *const BinBuf,
 		filename: [*:0]const u8,
 		dirname: [*:0]const u8,
 		crflag: Options,
