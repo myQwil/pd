@@ -3,15 +3,16 @@ const pd = @import("pd");
 const Float = pd.Float;
 
 const Sesom = extern struct {
+	obj: pd.Object,
+	out_l: *pd.Outlet,
+	out_r: *pd.Outlet,
+	f: Float,
+
 	const name = "sesom";
 	var class: *pd.Class = undefined;
 
-	obj: pd.Object,
-	out: [2]*pd.Outlet,
-	f: Float,
-
 	fn floatC(self: *Sesom, f: Float) callconv(.c) void {
-		self.out[if (f > self.f) 0 else 1].float(f);
+		(if (f > self.f) self.out_l else self.out_r).float(f);
 	}
 
 	inline fn init(f: Float) !*Sesom {
@@ -19,8 +20,8 @@ const Sesom = extern struct {
 		const obj: *pd.Object = &self.obj;
 		errdefer obj.g.pd.deinit();
 
-		self.out[0] = try obj.outlet(&pd.s_float);
-		self.out[1] = try obj.outlet(&pd.s_float);
+		self.out_l = try obj.outlet(&pd.s_float);
+		self.out_r = try obj.outlet(&pd.s_float);
 		_ = try obj.inletFloat(&self.f);
 
 		self.f = f;
@@ -28,9 +29,9 @@ const Sesom = extern struct {
 	}
 
 	fn initC(f: Float) callconv(.c) ?*Sesom {
-		return init(f) catch |e| {
+		return init(f) catch |e| blk: {
 			pd.post.err(null, name ++ ": %s", .{ @errorName(e).ptr });
-			return null;
+			break :blk null;
 		};
 	}
 
