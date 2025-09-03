@@ -91,6 +91,25 @@ pub const Atom = extern struct {
 	}
 };
 
+pub const ArgError = error {
+	WrongAtomType,
+	IndexOutOfBounds,
+};
+
+pub inline fn floatArg(idx: usize, av: []const Atom) ArgError!Float {
+	return if (av.len > idx)
+		av[idx].getFloat() orelse ArgError.WrongAtomType
+	else
+		ArgError.IndexOutOfBounds;
+}
+
+pub inline fn symbolArg(idx: usize, av: []const Atom) ArgError!*Symbol {
+	return if (av.len > idx)
+		av[idx].getSymbol() orelse ArgError.WrongAtomType
+	else
+		ArgError.IndexOutOfBounds;
+}
+
 fn typesFromAtoms(comptime args: []const Atom.Type) [args.len]type {
 	var types: [args.len]type = undefined;
 	for (args, 0..) |a, i| {
@@ -142,14 +161,6 @@ pub fn addCreator(
 	@call(.auto, class_addcreator, .{ newm, sym } ++ Atom.Type.tuple(args));
 }
 extern fn class_addcreator(*const NewMethod, *Symbol, c_uint, ...) void;
-
-pub inline fn floatArg(idx: usize, av: []const Atom) ?Float {
-	return if (av.len > idx and av[idx].type == .float) av[idx].w.float else null;
-}
-
-pub inline fn symbolArg(idx: usize, av: []const Atom) ?*Symbol {
-	return if (av.len > idx and av[idx].type == .symbol) av[idx].w.symbol else null;
-}
 
 
 // ---------------------------------- BinBuf -----------------------------------
@@ -564,7 +575,7 @@ pub const Inlet = opaque {
 		av: []const Atom,
 		fallback: Float,
 	) Error!*Inlet {
-		fp.* = floatArg(index, av) orelse fallback;
+		fp.* = floatArg(index, av) catch fallback;
 		return .initFloat(obj, fp);
 	}
 
@@ -575,7 +586,7 @@ pub const Inlet = opaque {
 		av: []const Atom,
 		fallback: *Symbol,
 	) Error!*Inlet {
-		sp.* = symbolArg(index, av) orelse fallback;
+		sp.* = symbolArg(index, av) catch fallback;
 		return .initSymbol(obj, sp);
 	}
 };
