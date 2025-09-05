@@ -863,6 +863,14 @@ pub const post = struct {
 	extern fn logpost(?*const anyopaque, LogLevel, [*:0]const u8, ...) void;
 };
 
+/// Wrapper for new and setup functions
+pub inline fn wrap(T: type, result: anyerror!T, comptime prefix: [:0]const u8) ?T {
+	return result catch |e| {
+		post.err(null, prefix ++ ": %s", .{ @errorName(e).ptr });
+		return null;
+	};
+}
+
 
 // --------------------------------- Resample ----------------------------------
 // -----------------------------------------------------------------------------
