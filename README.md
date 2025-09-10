@@ -41,7 +41,7 @@ zig build --release=fast run
 First, update your `build.zig.zon`:
 
 ```bash
-zig fetch --save git+https://github.com/myQwil/pd#v0.56.1-2
+zig fetch --save git+https://github.com/myQwil/pd#v0.56.1-3
 ```
 
 Next, add this snippet to your `build.zig` script:

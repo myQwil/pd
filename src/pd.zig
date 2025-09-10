@@ -112,8 +112,8 @@ pub inline fn symbolArg(idx: usize, av: []const Atom) ArgError!*Symbol {
 
 fn typesFromAtoms(comptime args: []const Atom.Type) [args.len]type {
 	var types: [args.len]type = undefined;
-	for (args, 0..) |a, i| {
-		types[i] = switch (a) {
+	for (args, &types) |a, *t| {
+		t.* = switch (a) {
 			.symbol, .defsymbol => *Symbol,
 			else => Float,
 		};
@@ -125,8 +125,8 @@ const Fn = std.builtin.Type.Fn;
 
 fn paramsFromTypes(comptime types: []const type) [types.len]Fn.Param {
 	var params: [types.len]Fn.Param = undefined;
-	for (types, 0..) |t, i| {
-		params[i] = .{
+	for (types, &params) |t, *p| {
+		p.* = .{
 			.is_generic = false,
 			.is_noalias = false,
 			.type = t,
