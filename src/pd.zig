@@ -808,10 +808,9 @@ pub const Pd = extern struct {
 // -----------------------------------------------------------------------------
 pub const post = struct {
 	pub fn do(fmt: [*:0]const u8, args: anytype) void {
-		@call(.auto, post_, .{ fmt } ++ args);
+		@call(.auto, pd_post, .{ fmt } ++ args);
 	}
-	const post_ = @extern(
-		*const fn([*:0]const u8, ...) callconv(.c) void, .{ .name = "post" });
+	extern fn pd_post([*:0]const u8, ...) void;
 
 	pub fn start(fmt: [*:0]const u8, args: anytype) void {
 		@call(.auto, startpost, .{ fmt } ++ args);
@@ -1035,14 +1034,25 @@ extern fn sys_getfloatsize() c_uint;
 pub const realTime = sys_getrealtime;
 extern fn sys_getrealtime() f64;
 
-pub const lock = sys_lock;
-extern fn sys_lock() void;
+pub const queue = struct {
+	pub const MessFn = fn(?*Pd, *anyopaque) callconv(.c) void;
 
-pub const unlock = sys_unlock;
-extern fn sys_unlock() void;
+	/// Send a message to a Pd object from another (helper) thread.
+	/// `func` will be called on the scheduler thread with `obj` and `data`.
+	/// If the message has been canceled, the `obj` argument is null, see
+	/// `pd_queue_cancel()` below.
+	///
+	/// NB: do not forget to free the `data` object!
+	pub const mess = pd_queue_mess;
+	extern fn pd_queue_mess(
+		*Instance, obj: ?*Pd, data: *anyopaque, func: *const MessFn,
+	) void;
 
-pub const tryLock = sys_trylock;
-extern fn sys_trylock() c_int;
+	/// Cancel all pending messages for the given object.
+	/// Typically called in the object destructor AFTER joining the helper thread.
+	pub const cancel = pd_queue_cancel;
+	extern fn pd_queue_cancel(*Pd) void;
+};
 
 pub const hostFontSize = sys_hostfontsize;
 extern fn sys_hostfontsize(c_uint, c_uint) c_uint;

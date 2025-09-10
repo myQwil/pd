@@ -225,9 +225,9 @@ pub const Class = extern struct {
 		sym: *Symbol,
 		comptime args: []const Atom.Type,
 	) void {
-		@call(.auto, class_addmethod, .{ self, meth, sym } ++ Atom.Type.tuple(args));
+		@call(.auto, pd_class_addmethod, .{ self, meth, sym } ++ Atom.Type.tuple(args));
 	}
-	extern fn class_addmethod(*Class, *const Method, *Symbol, c_uint, ...) void;
+	extern fn pd_class_addmethod(*Class, *const Method, *Symbol, c_uint, ...) void;
 
 	pub fn init(
 		T: type,
@@ -241,15 +241,11 @@ pub const Class = extern struct {
 		const sym: *Symbol = .gen(name.ptr);
 		const newm: ?*const NewMethod = @ptrCast(new_method);
 		const freem: ?*const Method = @ptrCast(free_method);
-		return @call(.auto, classInit,
+		return @call(.auto, pd_class_new,
 			.{ sym, newm, freem, @sizeOf(T), options.toInt() } ++ Atom.Type.tuple(args)
 		) orelse Error.ClassInit;
 	}
-	extern fn class_new(
+	extern fn pd_class_new(
 		*Symbol, ?*const NewMethod, ?*const Method, usize, c_uint, c_uint, ...,
 	) ?*Class;
-	extern fn class_new64(
-		*Symbol, ?*const NewMethod, ?*const Method, usize, c_uint, c_uint, ...,
-	) ?*Class;
-	const classInit = if (@bitSizeOf(Float) == 64) class_new64 else class_new;
 };
