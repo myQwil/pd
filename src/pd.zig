@@ -62,11 +62,11 @@ pub const Atom = extern struct {
 		}
 	};
 
-	pub inline fn getFloat(self: *const Atom) ?Float {
+	pub inline fn getFloat(self: Atom) ?Float {
 		return if (self.type == .float) self.w.float else null;
 	}
 
-	pub inline fn getSymbol(self: *const Atom) ?*Symbol {
+	pub inline fn getSymbol(self: Atom) ?*Symbol {
 		return if (self.type == .symbol) self.w.symbol else null;
 	}
 
@@ -97,14 +97,14 @@ pub const ArgError = error {
 };
 
 pub inline fn floatArg(idx: usize, av: []const Atom) ArgError!Float {
-	return if (av.len > idx)
+	return if (idx < av.len)
 		av[idx].getFloat() orelse ArgError.WrongAtomType
 	else
 		ArgError.IndexOutOfBounds;
 }
 
 pub inline fn symbolArg(idx: usize, av: []const Atom) ArgError!*Symbol {
-	return if (av.len > idx)
+	return if (idx < av.len)
 		av[idx].getSymbol() orelse ArgError.WrongAtomType
 	else
 		ArgError.IndexOutOfBounds;
