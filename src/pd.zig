@@ -426,7 +426,7 @@ pub extern const scalar_class: *Class;
 pub const GArray = opaque {
 	pub const Error = error {
 		GArrayGetArray,
-		GArrayFloatWords,
+		GArrayBadTemplate,
 	};
 
 	pub const redraw = garray_redraw;
@@ -460,7 +460,7 @@ pub const GArray = opaque {
 		var len: c_uint = undefined;
 		var ptr: [*]Word = undefined;
 		return if (garray_getfloatwords(self, &len, &ptr) != 0)
-			ptr[0..len] else Error.GArrayFloatWords;
+			ptr[0..len] else Error.GArrayBadTemplate;
 	}
 	extern fn garray_getfloatwords(*GArray, *c_uint, vec: *[*]Word) c_uint;
 };
