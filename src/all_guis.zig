@@ -14,8 +14,8 @@ pub const max_size = 1000;
 pub const max_num_len = 32;
 pub const io_height = cnv.i_height;
 
-pub fn isFloat(av: []Atom) bool {
-	for (av) |*a| {
+pub fn isFloat(av: []const Atom) bool {
+	for (av) |a| {
 		if (a.type != .float) {
 			return false;
 		}
@@ -23,8 +23,8 @@ pub fn isFloat(av: []Atom) bool {
 	return true;
 }
 
-pub fn isSymbolOrFloat(av: []Atom) bool {
-	for (av) |*a| {
+pub fn isSymbolOrFloat(av: []const Atom) bool {
+	for (av) |a| {
 		if (a.type != .float and a.type != .symbol) {
 			return false;
 		}
@@ -199,23 +199,23 @@ pub const Gui = extern struct {
 	}
 	extern fn iemgui_size(*anyopaque, *Gui) void;
 
-	pub fn delta(self: *Gui, x: *anyopaque, s: *Symbol, av: []Atom)
+	pub fn delta(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom)
 	void {
 		iemgui_delta(x, self, s, @intCast(av.len), av.ptr);
 	}
-	extern fn iemgui_delta(*anyopaque, *Gui, *Symbol, c_uint, [*]Atom) void;
+	extern fn iemgui_delta(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
-	pub fn pos(self: *Gui, x: *anyopaque, s: *Symbol, av: []Atom)
+	pub fn pos(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom)
 	void {
 		iemgui_pos(x, self, s, @intCast(av.len), av.ptr);
 	}
-	extern fn iemgui_pos(*anyopaque, *Gui, *Symbol, c_uint, [*]Atom) void;
+	extern fn iemgui_pos(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
-	pub fn color(self: *Gui, x: *anyopaque, s: *Symbol, av: []Atom)
+	pub fn color(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom)
 	void {
 		iemgui_color(x, self, s, @intCast(av.len), av.ptr);
 	}
-	extern fn iemgui_color(*anyopaque, *Gui, *Symbol, c_uint, [*]Atom) void;
+	extern fn iemgui_color(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
 	pub fn send(self: *Gui, x: *anyopaque, s: *Symbol) void {
 		iemgui_send(x, self, s);
@@ -232,15 +232,15 @@ pub const Gui = extern struct {
 	}
 	extern fn iemgui_label(*anyopaque, *Gui, *Symbol) void;
 
-	pub fn labelPos(self: *Gui, x: *anyopaque, s: *Symbol, av: []Atom) void {
+	pub fn labelPos(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
 		iemgui_label_pos(x, self, s, @intCast(av.len), av.ptr);
 	}
-	extern fn iemgui_label_pos(*anyopaque, *Gui, *Symbol, c_uint, [*]Atom) void;
+	extern fn iemgui_label_pos(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
-	pub fn labelFont(self: *Gui, x: *anyopaque, s: *Symbol, av: []Atom) void {
+	pub fn labelFont(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
 		iemgui_label_font(x, self, s, @intCast(av.len), av.ptr);
 	}
-	extern fn iemgui_label_font(*anyopaque, *Gui, *Symbol, c_uint, [*]Atom) void;
+	extern fn iemgui_label_font(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
 	pub const SendToGui = enum(c_int) {
 		auto = -1,
@@ -302,10 +302,10 @@ pub const Gui = extern struct {
 	extern fn iemgui_setdialogatoms(*Gui, c_uint, [*]Atom) void;
 
 	/// Returns a sendable/receivable bit mask.
-	pub fn dialog(self: *Gui, srl: [*]*Symbol, av: []Atom) u2 {
+	pub fn dialog(self: *Gui, srl: [*]*Symbol, av: []const Atom) u2 {
 		return @intCast(iemgui_dialog(self, srl, @intCast(av.len), av.ptr));
 	}
-	extern fn iemgui_dialog(*Gui, [*]*Symbol, c_uint, [*]Atom) c_uint;
+	extern fn iemgui_dialog(*Gui, [*]*Symbol, c_uint, [*]const Atom) c_uint;
 
 	pub fn init(cls: *Class) Error!*Gui {
 		return iemgui_new(cls) orelse Error.GuiInit;
