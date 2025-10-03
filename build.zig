@@ -1,4 +1,5 @@
 const std = @import("std");
+const Build = std.Build;
 const LinkMode = std.builtin.LinkMode;
 const StringList = std.ArrayList([]const u8);
 
@@ -31,7 +32,7 @@ const Options = struct {
 	};
 
 	fn init(
-		b: *std.Build,
+		b: *Build,
 		os: std.Target.Os.Tag,
 	) Options {
 		const default: Options = .{};
@@ -126,12 +127,12 @@ const Options = struct {
 };
 
 fn baseModule(
-	b: *std.Build,
+	b: *Build,
 	opt: Options,
-	dep: *std.Build.Dependency,
-	target: std.Build.ResolvedTarget,
+	dep: *Build.Dependency,
+	target: Build.ResolvedTarget,
 	optimize: std.builtin.OptimizeMode,
-) *std.Build.Module {
+) *Build.Module {
 	const mod = b.createModule(.{
 		.target = target,
 		.optimize = optimize,
@@ -236,9 +237,9 @@ inline fn endsWith(haystack: []const u8, needles: []const []const u8) bool {
 }
 
 fn installFileType(
-	b: *std.Build,
-	dep: *std.Build.Dependency,
-	install: *std.Build.Step.InstallArtifact,
+	b: *Build,
+	dep: *Build.Dependency,
+	install: *Build.Step.InstallArtifact,
 	sub_path: []const u8,
 	ext: []const u8,
 ) !void {
@@ -256,8 +257,8 @@ fn installFileType(
 }
 
 pub fn extension(
-	b: *std.Build,
-	target: std.Build.ResolvedTarget,
+	b: *Build,
+	target: Build.ResolvedTarget,
 ) []const u8 {
 	const os = target.result.os.tag;
 	const arch = target.result.cpu.arch;
@@ -275,7 +276,7 @@ pub fn extension(
 	});
 }
 
-pub fn build(b: *std.Build) !void {
+pub fn build(b: *Build) !void {
 	const target = b.standardTargetOptions(.{});
 	const optimize = b.standardOptimizeOption(.{});
 
@@ -434,7 +435,7 @@ pub fn build(b: *std.Build) !void {
 		}
 	}
 
-	const mod_args: std.Build.Module.CreateOptions = .{
+	const mod_args: Build.Module.CreateOptions = .{
 		.target = target,
 		.optimize = optimize,
 		.link_libc = true,
