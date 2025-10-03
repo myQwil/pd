@@ -8,3 +8,9 @@ zig-out/
 # Upstream Pd folder
 upstream/
 pure-data/
+
+# Manifest file
+install_manifest.txt
+
+# Staging folder
+install/

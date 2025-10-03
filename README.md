@@ -9,10 +9,21 @@ packaged for [Zig](https://ziglang.org/).
 # Build the library (default)
 zig build --release=fast
 # Build the executable
-zig build --release=fast exe
+zig build exe --release=fast
 # Build and run the executable 
-zig build --release=fast run
+zig build run --release=fast
 ```
+
+## System-wide installation
+```bash
+# Staging
+DESTDIR=install zig build exe -p /usr/local --release=fast
+# Generate manifest (in case you want to uninstall later)
+find install -type f -printf '/%P\n' > install_manifest.txt
+# Copy to actual install path (probably requires sudo)
+cp -a install/* /
+```
+
 ### Build Options:
 | Option | Description | Default |
 | -------- | ------- | ------- |
