@@ -19,6 +19,7 @@
 		"build.portaudio.zig",
 		"build.zig",
 		"build.zig.zon",
+		"InstallLink.zig",
 		"LICENSE",
 		"README.md",
 	},

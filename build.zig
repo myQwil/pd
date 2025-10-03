@@ -2,6 +2,7 @@ const std = @import("std");
 const Build = std.Build;
 const LinkMode = std.builtin.LinkMode;
 const StringList = std.ArrayList([]const u8);
+pub const InstallLink = @import("InstallLink.zig");
 
 const Options = struct {
 	lib: Lib = .{},
@@ -236,22 +237,25 @@ inline fn endsWith(haystack: []const u8, needles: []const []const u8) bool {
 	} else false;
 }
 
-fn installFileType(
+fn installFiles(
 	b: *Build,
 	dep: *Build.Dependency,
 	install: *Build.Step.InstallArtifact,
-	sub_path: []const u8,
-	ext: []const u8,
+	src_path: []const u8,
+	dest_path: []const u8,
+	exts: []const []const u8,
 ) !void {
-	var dir = try dep.path(sub_path).getPath3(b, null).openDir("", .{ .iterate = true });
+	// I'm using `getPath3` outside of the make phase. Normally, this would be bad,
+	// but it's from a dependency, so the files are there at graph construction time.
+	var dir = try dep.path(src_path).getPath3(b, null).openDir("", .{ .iterate = true });
 	defer dir.close();
 	var iter = dir.iterate();
 	while (try iter.next()) |f| {
-		if (f.kind != .file or !endsWith(f.name, &.{ ext, ".txt" })) {
+		if (f.kind != .file or !endsWith(f.name, exts)) {
 			continue;
 		}
-		const path = b.fmt("{s}/{s}", .{ sub_path, f.name });
-		const path2 = b.fmt("lib/pd/{s}", .{ path });
+		const path = b.fmt("{s}/{s}", .{ src_path, f.name });
+		const path2 = b.fmt("{s}/{s}", .{ dest_path, path });
 		install.step.dependOn(&b.addInstallFile(dep.path(path), path2).step);
 	}
 }
@@ -423,11 +427,15 @@ pub fn build(b: *Build) !void {
 			.flags = flags.items,
 		});
 
+		const pd_path: Build.LazyPath = .{ .cwd_relative = b.getInstallPath(.bin, "pd") };
+		const exe_symlink: *InstallLink = .add(b, pd_path, "lib/pd/bin/pd");
+		exe_symlink.step.dependOn(&install_exe.step);
+
 		const step_install = b.step("exe", "Build the executable");
-		step_install.dependOn(&install_exe.step);
+		step_install.dependOn(&exe_symlink.step);
 
 		const run = b.addRunArtifact(exe);
-		run.step.dependOn(&install_exe.step);
+		run.step.dependOn(&exe_symlink.step);
 		const step_run = b.step("run", "Build and run the executable");
 		step_run.dependOn(&run.step);
 		if (b.args) |args| {
@@ -487,9 +495,30 @@ pub fn build(b: *Build) !void {
 
 	//---------------------------------------------------------------------------
 	// Tcl
-	try installFileType(b, upstream, install_exe, "tcl", ".tcl");
-	install_exe.step.dependOn(&b.addInstallFile(
-		upstream.path("tcl/pd.gif"), "lib/pd/tcl/pd.gif").step);
+	{
+		try installFiles(b, upstream, install_exe, "tcl", "lib/pd",
+			&.{ ".tcl", ".txt", ".gif" });
+
+		const pd_gui = b.addConfigHeader(.{
+			.style = .{ .autoconf_at = upstream.path("tcl/pd-gui.in") },
+		}, .{
+			.prefix = b.install_prefix,
+			.exec_prefix = "${prefix}",
+			.libdir = "${exec_prefix}/lib",
+			.PACKAGE = "pd",
+		});
+
+		const tail = b.addSystemCommand(&.{ "tail", "-n", "+2" });
+		tail.setStdIn(.{ .lazy_path = pd_gui.getOutput() });
+
+		const chmod = b.addSystemCommand(&.{ "chmod", "+x" });
+		chmod.addFileArg(tail.captureStdOut());
+		chmod.step.dependOn(&tail.step);
+
+		const install_pdgui = b.addInstallBinFile(tail.captureStdOut(), "pd-gui");
+		install_pdgui.step.dependOn(&chmod.step);
+		install_exe.step.dependOn(&install_pdgui.step);
+	}
 
 	//---------------------------------------------------------------------------
 	// Extra
@@ -506,9 +535,9 @@ pub fn build(b: *Build) !void {
 			});
 
 			const end = x.len - 2;
-			const tail = std.mem.lastIndexOf(u8, x, "/").?;
+			const dir = std.fs.path.dirname(x).?;
 			const lib = b.addLibrary(.{
-				.name = x[tail + 1..end],
+				.name = x[dir.len + 1..end],
 				.linkage = .dynamic,
 				.root_module = mod,
 			});
@@ -517,9 +546,11 @@ pub fn build(b: *Build) !void {
 				b.fmt("lib/pd/{s}{s}", .{ x[0..end], ext }));
 			install_lib.step.dependOn(&lib.step);
 			install_exe.step.dependOn(&install_lib.step);
-			try installFileType(b, upstream, install_exe, x[0..tail], ".pd");
+			try installFiles(b, upstream, install_exe, dir, "lib/pd",
+				&.{ ".pd", ".txt" });
 		}
-		try installFileType(b, upstream, install_exe, "extra", ".pd");
+		try installFiles(b, upstream, install_exe, "extra", "lib/pd",
+			&.{ ".pd", ".txt" });
 
 		// Zig extern examples
 		for (&src.zig_extra) |x| {
@@ -554,6 +585,38 @@ pub fn build(b: *Build) !void {
 		.install_subdir = "lib/pd/doc",
 		.install_dir = .prefix,
 	}).step);
+
+	//---------------------------------------------------------------------------
+	// Resources
+	if (os == .linux) {
+		install_exe.step.dependOn(&b.addInstallFile(
+			upstream.path("linux/org.puredata.pd-gui.desktop"),
+			"share/applications/org.puredata.pd-gui.desktop",
+		).step);
+		install_exe.step.dependOn(&b.addInstallFile(
+			upstream.path("linux/org.puredata.pd-gui.metainfo.xml"),
+			"share/metainfo/org.puredata.pd-gui.metainfo.xml",
+		).step);
+
+		// Icons
+		install_exe.step.dependOn(&b.addInstallFile(
+			upstream.path("linux/icons/48x48/puredata.png"),
+			"share/icons/hicolor/48x48/apps/puredata.png",
+		).step);
+		install_exe.step.dependOn(&b.addInstallFile(
+			upstream.path("linux/icons/512x512/puredata.png"),
+			"share/icons/hicolor/512x512/apps/puredata.png",
+		).step);
+		install_exe.step.dependOn(&b.addInstallFile(
+			upstream.path("linux/icons/puredata.svg"),
+			"share/icons/hicolor/scalable/apps/puredata.svg",
+		).step);
+
+		try installFiles(b, upstream, install_exe, "font", "share/pd",
+			&.{ ".ttf", ".txt", "LICENSE" });
+		try installFiles(b, upstream, install_exe, ".", "share/pd",
+			&.{ "LICENSE.txt", "README.txt" });
+	}
 }
 
 const src = struct {
