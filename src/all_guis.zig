@@ -14,8 +14,12 @@ pub const max_size = 1000;
 pub const max_num_len = 32;
 pub const io_height = cnv.i_height;
 
-pub fn isFloat(av: []const Atom) bool {
-	for (av) |a| {
+pub inline fn isFloat(
+	av: [*]const Atom,
+	comptime start: usize,
+	comptime end: usize,
+) bool {
+	inline for (av[start..end]) |a| {
 		if (a.type != .float) {
 			return false;
 		}
@@ -23,8 +27,12 @@ pub fn isFloat(av: []const Atom) bool {
 	return true;
 }
 
-pub fn isSymbolOrFloat(av: []const Atom) bool {
-	for (av) |a| {
+pub inline fn isSymbolOrFloat(
+	av: [*]const Atom,
+	comptime start: usize,
+	comptime end: usize,
+) bool {
+	inline for (av[start..end]) |a| {
 		if (a.type != .float and a.type != .symbol) {
 			return false;
 		}
