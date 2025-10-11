@@ -23,8 +23,8 @@ const Sesom = extern struct {
 		const obj: *pd.Object = &self.obj;
 		errdefer obj.g.pd.deinit();
 
-		self.out_l = try obj.outlet(&pd.s_float);
-		self.out_r = try obj.outlet(&pd.s_float);
+		self.out_l = try .init(obj, &pd.s_float);
+		self.out_r = try .init(obj, &pd.s_float);
 		_ = try obj.inletFloat(&self.f);
 
 		self.f = f;
