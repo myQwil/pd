@@ -587,12 +587,19 @@ pub const VisFn = fn (*GObj, *GList, c_uint) callconv(.c) void;
 
 pub const WidgetBehavior = extern struct {
 	getrect: ?*const GetRectFn = null,
-	displace: ?*const DisplaceFn = &iem.displace,
-	select: ?*const SelectFn = &iem.select,
+	displace: ?*const DisplaceFn = null,
+	select: ?*const SelectFn = null,
 	activate: ?*const ActivateFn = null,
-	delete: ?*const DeleteFn = &iem.delete,
-	vis: ?*const VisFn = &iem.vis,
+	delete: ?*const DeleteFn = null,
+	vis: ?*const VisFn = null,
 	click: ?*const ClickFn = null,
+
+	pub const iem_default: WidgetBehavior = .{
+		.displace = &iem.displace,
+		.select = &iem.select,
+		.delete = &iem.delete,
+		.vis = &iem.vis,
+	};
 };
 
 pub const parent = struct {
