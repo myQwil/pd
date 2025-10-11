@@ -1230,14 +1230,19 @@ pub fn fft(buf: []Float, inverse: bool) void {
 }
 extern fn pd_fft([*]Float, c_uint, c_uint) void;
 
-const ushift = std.meta.Int(.unsigned, @log2(@as(Float, @bitSizeOf(usize))));
-pub fn ulog2(n: usize) ushift {
-	var i = n;
-	var r: ushift = 0;
-	while (i > 1) : (i >>= 1) {
-		r += 1;
-	}
-	return r;
+const ushift = @Type(.{ .int = .{
+	.signedness = .unsigned,
+	.bits = @bitSizeOf(usize) - 1 - @clz(@as(usize, @bitSizeOf(usize))),
+}});
+pub fn ulog2(n: usize) ?ushift {
+	return if (n == 0) null else @intCast(@bitSizeOf(usize) - 1 - @clz(n));
+}
+
+test ulog2 {
+	try std.testing.expectEqual(ulog2(127), 6);
+	try std.testing.expectEqual(ulog2(64), 6);
+	try std.testing.expectEqual(ulog2(1), 0);
+	try std.testing.expectEqual(ulog2(0), 0);
 }
 
 pub const mToF = mtof;
