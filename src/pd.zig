@@ -864,9 +864,9 @@ pub const post = struct {
 
 /// Wrapper for new and setup functions
 pub inline fn wrap(T: type, result: anyerror!T, comptime prefix: [:0]const u8) ?T {
-	return result catch |e| {
+	return result catch |e| blk: {
 		post.err(null, prefix ++ ": %s", .{ @errorName(e).ptr });
-		return null;
+		break :blk null;
 	};
 }
 
