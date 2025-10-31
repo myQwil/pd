@@ -14,26 +14,24 @@ pub const max_size = 1000;
 pub const max_num_len = 32;
 pub const io_height = cnv.i_height;
 
-pub inline fn isFloat(
-	av: [*]const Atom,
-	comptime start: usize,
-	comptime end: usize,
-) bool {
-	inline for (av[start..end]) |a| {
-		if (a.type != .float) {
-			return false;
+inline fn contains(comptime haystack: []const Atom.Type, needle: Atom.Type) bool {
+	inline for (haystack) |item| {
+		if (item == needle) {
+			return true;
 		}
 	}
-	return true;
+	return false;
 }
 
-pub inline fn isSymbolOrFloat(
+/// check if all atoms match a type in the haystack
+pub inline fn matchTypes(
 	av: [*]const Atom,
 	comptime start: usize,
 	comptime end: usize,
+	comptime haystack: []const Atom.Type,
 ) bool {
 	inline for (av[start..end]) |a| {
-		if (a.type != .float and a.type != .symbol) {
+		if (!contains(haystack, a.type)) {
 			return false;
 		}
 	}
