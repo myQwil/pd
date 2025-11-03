@@ -53,12 +53,12 @@ pub const Atom = extern struct {
 		pub fn tuple(
 			comptime args: []const Type,
 		) Tuple(&[_]type {c_uint} ** (args.len + 1)) {
-			var arr: Tuple(&[_]type {c_uint} ** (args.len + 1)) = undefined;
+			var tpl: Tuple(&[_]type {c_uint} ** (args.len + 1)) = undefined;
 			inline for (0..args.len) |i| {
-				arr[i] = @intFromEnum(args[i]);
+				tpl[i] = @intFromEnum(args[i]);
 			}
-			arr[args.len] = @intFromEnum(Type.none);
-			return arr;
+			tpl[args.len] = @intFromEnum(Type.none);
+			return tpl;
 		}
 	};
 
