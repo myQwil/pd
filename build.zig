@@ -2,7 +2,7 @@ const std = @import("std");
 const Build = std.Build;
 const LinkMode = std.builtin.LinkMode;
 const StringList = std.ArrayList([]const u8);
-pub const InstallLink = @import("InstallLink.zig");
+pub const InstallLink = @import("src/build/InstallLink.zig");
 
 const Options = struct {
 	lib: Lib = .{},
@@ -406,7 +406,7 @@ pub fn build(b: *Build) !void {
 			try files.appendSlice(mem, &src.portaudio);
 			mod.addCMacro("USEAPI_PORTAUDIO", "1");
 			if (opt.portaudio.local) {
-				const pa = @import("build.portaudio.zig");
+				const pa = @import("src/build/portaudio.zig");
 				mod.linkLibrary(try pa.library(b, target, optimize));
 			} else {
 				mod.linkSystemLibrary("portaudio", .{});
