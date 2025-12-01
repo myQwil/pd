@@ -456,7 +456,7 @@ pub const GList = extern struct {
 	extern fn canvas_destroy_editor(*GList) void;
 
 	pub const deleteLinesForIo = canvas_deletelinesforio;
-	extern fn canvas_deletelinesforio(*GList, text: *Object, *Inlet, *Outlet) void;
+	extern fn canvas_deletelinesforio(*GList, text: *Object, ?*Inlet, ?*Outlet) void;
 
 	pub const makeFilename = canvas_makefilename;
 	extern fn canvas_makefilename(
@@ -532,6 +532,18 @@ pub const GList = extern struct {
 
 	pub const environment = canvas_getenv;
 	extern fn canvas_getenv(*GList) *Environment;
+
+	pub const realizeDollar = canvas_realizedollar;
+	extern fn canvas_realizedollar(*GList, *Symbol) *Symbol;
+
+	/// Mark a glist dirty or clean.
+	pub fn setDirty(self: *GList, state: bool) void {
+		canvas_dirty(self, @floatFromInt(@intFromBool(state)));
+	}
+	extern fn canvas_dirty(*GList, Float) void;
+
+	pub const fixLinesFor = canvas_fixlinesfor;
+	extern fn canvas_fixlinesfor(*GList, *Object) void;
 };
 
 
