@@ -8,7 +8,6 @@ const Word = m.Word;
 
 const GPointer = m.GPointer;
 const GStub = m.GStub;
-const GObj = m.GObj;
 const Object = m.Object;
 const BinBuf = m.BinBuf;
 const Clock = m.Clock;
@@ -533,6 +532,67 @@ pub const GList = extern struct {
 
 	pub const environment = canvas_getenv;
 	extern fn canvas_getenv(*GList) *Environment;
+};
+
+
+// ----------------------------------- GObj ------------------------------------
+// -----------------------------------------------------------------------------
+pub const GObj = extern struct {
+	pd: Pd,
+	next: ?*GObj,
+
+	pub const getRect = gobj_getrect;
+	extern fn gobj_getrect(
+		self: *GObj, owner: *GList,
+		x1: *c_int, y1: *c_int, x2: *c_int, y2: *c_int,
+	) void;
+
+	pub const displace = gobj_displace;
+	extern fn gobj_displace(self: *GObj, owner: *GList, dx: c_int, dy: c_int) void;
+
+	pub fn select(self: *GObj, owner: *GList, state: bool) void {
+		gobj_select(self, owner, @intFromBool(state));
+	}
+	extern fn gobj_select(*GObj, *GList, c_uint) void;
+
+	pub fn activate(self: *GObj, owner: *GList, state: bool) void {
+		gobj_activate(self, owner, @intFromBool(state));
+	}
+	extern fn gobj_activate(*GObj, *GList, c_uint) void;
+
+	pub const delete = gobj_delete;
+	extern fn gobj_delete(self: *GObj, owner: *GList) void;
+
+	pub fn vis(self: *GObj, owner: *GList, state: bool) void {
+		gobj_vis(self, owner, @intFromBool(state));
+	}
+	extern fn gobj_vis(*GObj, *GList, c_uint) void;
+
+	pub fn click(
+		self: *GObj, glist: *GList,
+		xpix: c_int, ypix: c_int,
+		shift: bool, alt: bool, dblclk: bool, doit: bool,
+	) bool {
+		return gobj_click(
+			self, glist,
+			xpix, ypix,
+			@intFromBool(shift), @intFromBool(alt),
+			@intFromBool(dblclk), @intFromBool(doit),
+		);
+	}
+	extern fn gobj_click(
+		*GObj, *GList,
+		c_int, c_int,
+		c_uint, c_uint, c_uint, c_uint,
+	) c_int;
+
+	pub const save = gobj_save;
+	extern fn gobj_save(self: *GObj, b: *BinBuf) void;
+
+	pub fn shouldVis(self: *GObj, glist: *GList) bool {
+		return (gobj_shouldvis(self, glist) != 0);
+	}
+	extern fn gobj_shouldvis(*GObj, *GList) c_uint;
 };
 
 

@@ -16,6 +16,7 @@ pub const NewMethod = fn () callconv(.c) ?*anyopaque;
 pub const Class = imp.Class;
 pub const GList = cnv.GList;
 pub const Array = cnv.Array;
+pub const GObj = cnv.GObj;
 pub const Gui = iem.Gui;
 
 pub const Word = extern union {
@@ -609,11 +610,6 @@ pub const mem = Allocator{
 
 // ---------------------------------- Object -----------------------------------
 // -----------------------------------------------------------------------------
-pub const GObj = extern struct {
-	pd: Pd,
-	next: ?*GObj,
-};
-
 pub const Object = extern struct {
 	/// header for graphical object
 	g: GObj,
