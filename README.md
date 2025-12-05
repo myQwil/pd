@@ -12,16 +12,8 @@ zig build --release=fast
 zig build exe --release=fast
 # Build and run the executable 
 zig build run --release=fast
-```
-
-## System-wide installation
-```bash
-# Staging
-DESTDIR=install zig build exe -p /usr/local --release=fast
-# Generate manifest (in case you want to uninstall later)
-find install -type f -printf '/%P\n' > install_manifest.txt
-# Copy to actual install path (probably requires sudo)
-cp -a install/* /
+# System-wide installation
+./install.sh exe --release=fast
 ```
 
 ### Build Options:
