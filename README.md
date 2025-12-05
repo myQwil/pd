@@ -5,7 +5,7 @@ packaged for [Zig](https://ziglang.org/).
 
 ## How to build
 
-```bash
+```sh
 # Build the library (default)
 zig build --release=fast
 # Build the executable
@@ -43,8 +43,8 @@ zig build run --release=fast
 ## How to add pd to a zig project
 First, update your `build.zig.zon`:
 
-```bash
-zig fetch --save git+https://github.com/myQwil/pd#v0.56.1-5
+```sh
+zig fetch --save git+https://github.com/myQwil/pd#v0.56.2
 ```
 
 Next, add this snippet to your `build.zig` script:
