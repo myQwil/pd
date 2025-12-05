@@ -455,6 +455,7 @@ pub const GList = extern struct {
 	pub const destroyEditor = canvas_destroy_editor;
 	extern fn canvas_destroy_editor(*GList) void;
 
+	/// Kill all lines for one inlet or outlet.
 	pub const deleteLinesForIo = canvas_deletelinesforio;
 	extern fn canvas_deletelinesforio(*GList, text: *Object, ?*Inlet, ?*Outlet) void;
 
@@ -465,23 +466,28 @@ pub const GList = extern struct {
 	pub const dir = canvas_getdir;
 	extern fn canvas_getdir(*const GList) *Symbol;
 
+	/// Read text from a "properties" window, called from a gfxstub set
+	/// up in `scalar_properties()`. We try to restore the object; if successful
+	/// we either copy the data from the new scalar to the old one in place
+	/// (if their templates match) or else delete the old scalar and put the new
+	/// thing in its place on the list.
 	pub const dataProperties = canvas_dataproperties;
 	extern fn canvas_dataproperties(*GList, *Scalar, *BinBuf) void;
 
 	/// Utility function to read a file, looking first down the canvas's search
 	/// path (set with "declare" objects in the patch and recursively in calling
 	/// patches), then down the system one.  The filename is the concatenation of
-	/// "name" and "ext".  "Name" may be absolute, or may be relative with
-	/// slashes.  If anything can be opened, the true directory
+	/// `name` and `ext`. `name` may be absolute, or may be relative with
+	/// slashes. If anything can be opened, the true directory
 	/// is put in the buffer dirresult (provided by caller), which should
-	/// be "size" bytes.  The "nameresult" pointer will be set somewhere in
-	/// the interior of "dirresult" and will give the file basename (with
-	/// slashes trimmed).  If "bin" is set a 'binary' open is
+	/// be `size` bytes. The `nameresult` pointer will be set somewhere in
+	/// the interior of `dirresult` and will give the file basename (with
+	/// slashes trimmed). If `bin` is set, a 'binary' open is
 	/// attempted, otherwise ASCII (this only matters on Microsoft.)
-	/// If "x" is zero, the file is sought in the directory "." or in the
+	/// If `self` is null, the file is sought in the directory "." or in the
 	/// global path.
 	pub fn open(
-		self: *const GList,
+		self: ?*const GList,
 		name: [*:0]const u8,
 		ext: [*:0]const u8,
 		dirresult: [*:0]u8,

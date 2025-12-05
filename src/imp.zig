@@ -150,7 +150,7 @@ pub const Class = extern struct {
 	pub const gui = m.iem.Gui.init;
 
 	pub const deinit = class_free;
-	extern fn class_free(c: *Class) void;
+	extern fn class_free(*Class) void;
 
 	pub const addBang = class_addbang;
 	extern fn class_addbang(*Class, *const Method) void;
@@ -192,7 +192,7 @@ pub const Class = extern struct {
 	extern fn class_setdrawcommand(*Class) void;
 
 	pub const doMainSignalIn = class_domainsignalin;
-	extern fn class_domainsignalin(*Class, c_uint) void;
+	extern fn class_domainsignalin(*Class, onset: c_uint) void;
 
 	pub const setSaveFn = class_setsavefn;
 	extern fn class_setsavefn(*Class, ?*const SaveFn) void;

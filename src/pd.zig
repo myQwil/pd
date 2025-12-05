@@ -351,10 +351,10 @@ pub const Clock = opaque {
 	extern fn clock_free(*Clock) void;
 
 	pub const set = clock_set;
-	extern fn clock_set(*Clock, systime: f64) void;
+	extern fn clock_set(*Clock, sys_time: f64) void;
 
 	pub const delay = clock_delay;
-	extern fn clock_delay(*Clock, delaytime: f64) void;
+	extern fn clock_delay(*Clock, delay_time: f64) void;
 
 	pub const unset = clock_unset;
 	extern fn clock_unset(*Clock) void;
@@ -374,10 +374,10 @@ pub const time = clock_getlogicaltime;
 extern fn clock_getlogicaltime() f64;
 
 pub const timeSince = clock_gettimesince;
-extern fn clock_gettimesince(prevsystime: f64) f64;
+extern fn clock_gettimesince(prev_sys_time: f64) f64;
 
 pub const sysTimeAfter = clock_getsystimeafter;
-extern fn clock_getsystimeafter(delaytime: f64) f64;
+extern fn clock_getsystimeafter(delay_time: f64) f64;
 
 pub fn timeSinceWithUnits(prevsystime: f64, units: f64, in_samples: bool) f64 {
 	return clock_gettimesincewithunits(prevsystime, units, @intFromBool(in_samples));
@@ -415,7 +415,7 @@ pub const dsp = struct {
 	extern fn dsp_add_scalarcopy(in: [*]Float, out: [*]Sample, n: c_uint) void;
 
 	pub const addZero = dsp_add_zero;
-	extern fn dsp_add_zero([*]Sample, c_uint) void;
+	extern fn dsp_add_zero(out: [*]Sample, n: c_uint) void;
 };
 
 
@@ -512,7 +512,7 @@ pub const GPointer = extern struct {
 	/// initialized.  New gpointers should be initialized either by this
 	/// routine or by gpointer_init below.
 	pub const copyTo = gpointer_copy;
-	extern fn gpointer_copy(from: *const GPointer, to: *GPointer) void;
+	extern fn gpointer_copy(*const GPointer, target: *GPointer) void;
 
 	/// Clear a gpointer that was previously set, releasing the associated
 	/// gstub if this was the last reference to it.
@@ -620,11 +620,11 @@ pub const Object = extern struct {
 	/// linked list of inlets
 	inlets: ?*Inlet,
 	/// x location (within the toplevel)
-	xpix: i16,
+	xpix: c_short,
 	/// y location (within the toplevel)
-	ypix: i16,
+	ypix: c_short,
 	/// requested width in chars, 0 if auto
-	width: i16,
+	width: c_short,
 	type: Type,
 
 	const Type = enum(u8) {
@@ -782,12 +782,6 @@ pub const Pd = extern struct {
 	}
 	extern fn pdgui_stub_vnew(*Pd, [*:0]const u8, *anyopaque, [*:0]const u8, ...) void;
 
-	pub const func = getfn;
-	extern fn getfn(*const Pd, *Symbol) ?*const GotFn;
-
-	pub const zFunc = zgetfn;
-	extern fn zgetfn(*const Pd, *Symbol) ?*const GotFn;
-
 	/// This is externally available, but note that it might later disappear; the
 	/// whole "newest" thing is a hack which needs to be redesigned.
 	pub const newest = pd_newest; // static
@@ -797,7 +791,19 @@ pub const Pd = extern struct {
 		return pd_new(cls) orelse Error.PdInit;
 	}
 	extern fn pd_new(*Class) ?*Pd;
+
+	/// Returns a pointer to the function `nullFn` on failure.
+	pub const getFn = getfn;
+	extern fn getfn(*const Pd, *Symbol) *const GotFn;
+
+	/// Similar to `getFn`, but returns null on failure.
+	pub const zGetFn = zgetfn;
+	extern fn zgetfn(*const Pd, *Symbol) ?*const GotFn;
 };
+
+/// An empty function that does nothing.
+pub const nullFn = nullfn;
+extern fn nullfn() void;
 
 
 // ----------------------------------- Post ------------------------------------
@@ -955,7 +961,7 @@ pub const Signal = extern struct {
 	/// Only use this in the context of dsp routines to set number of channels
 	/// on output signal - we assume it's currently a pointer to the null signal.
 	pub const setMultiOut = signal_setmultiout;
-	extern fn signal_setmultiout(**Signal, c_uint) void;
+	extern fn signal_setmultiout(**Signal, nchans: c_uint) void;
 };
 
 
@@ -1009,7 +1015,7 @@ extern fn sys_get_outchannels() c_uint;
 /// If some GUI object is having to do heavy computations, it can tell
 /// us to back off from doing more updates by faking a big one itself.
 pub const pretendGuiBytes = sys_pretendguibytes;
-extern fn sys_pretendguibytes(c_uint) void;
+extern fn sys_pretendguibytes(nbytes: c_uint) void;
 
 pub const queueGui = sys_queuegui;
 extern fn sys_queuegui(
@@ -1051,7 +1057,7 @@ pub const queue = struct {
 };
 
 pub const hostFontSize = sys_hostfontsize;
-extern fn sys_hostfontsize(c_uint, c_uint) c_uint;
+extern fn sys_hostfontsize(fontsize: c_uint, zoom: c_uint) c_uint;
 
 pub fn zoomFontWidth(fontsize: c_uint, zoom: c_uint, worst_case: bool) c_uint {
 	return sys_zoomfontwidth(fontsize, zoom, @intFromBool(worst_case));
@@ -1064,10 +1070,10 @@ pub fn zoomFontHeight(fontsize: c_uint, zoom: c_uint, worst_case: bool) c_uint {
 extern fn sys_zoomfontheight(c_uint, c_uint, c_uint) c_uint;
 
 pub const fontWidth = sys_fontwidth;
-extern fn sys_fontwidth(c_uint) c_uint;
+extern fn sys_fontwidth(fontsize: c_uint) c_uint;
 
 pub const fontHeight = sys_fontheight;
-extern fn sys_fontheight(c_uint) c_uint;
+extern fn sys_fontheight(fontsize: c_uint) c_uint;
 
 pub fn isAbsolutePath(dir: [*:0]const u8) bool {
 	return (sys_isabsolutepath(dir) != 0);
@@ -1120,14 +1126,14 @@ pub const value = struct {
 	/// Get a pointer to a named floating-point variable.  The variable
 	/// belongs to a `vcommon` object, which is created if necessary.
 	pub const from = value_get;
-	extern fn value_get(*Symbol) *Float;
+	extern fn value_get(name: *Symbol) *Float;
 
 	pub const release = value_release;
-	extern fn value_release(*Symbol) void;
+	extern fn value_release(name: *Symbol) void;
 
 	/// obtain the float value of a "value" object
-	pub fn get(sym: *Symbol, f: *Float) Error!void {
-		if (value_getfloat(sym, f) != 0)
+	pub fn get(name: *Symbol, f: *Float) Error!void {
+		if (value_getfloat(name, f) != 0)
 			return Error.ValueGet;
 	}
 	extern fn value_getfloat(*Symbol, *Float) c_int;
@@ -1158,9 +1164,6 @@ pub const GotFn4 = fn (
 pub const GotFn5 = fn (
 	*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque,
 ) callconv(.c) void;
-
-pub const nullFn = nullfn;
-extern fn nullfn() void;
 
 pub const font: [*:0]u8 = @extern([*:0]u8, .{ .name = "sys_font" });
 pub const font_weight: [*:0]u8 = @extern([*:0]u8, .{ .name = "sys_fontweight" });
@@ -1205,10 +1208,10 @@ pub const mayer = struct {
 	extern fn mayer_fht([*]Sample, c_uint) void;
 
 	pub const fft = mayer_fft;
-	extern fn mayer_fft(c_uint, [*]Sample, [*]Sample) void;
+	extern fn mayer_fft(n: c_uint, fz1: [*]Sample, fz2: [*]Sample) void;
 
 	pub const ifft = mayer_ifft;
-	extern fn mayer_ifft(c_uint, [*]Sample, [*]Sample) void;
+	extern fn mayer_ifft(n: c_uint, fz1: [*]Sample, fz2: [*]Sample) void;
 
 	pub fn realfft(real: []Sample) void {
 		mayer_realfft(@intCast(real.len), real.ptr);
@@ -1241,23 +1244,23 @@ test ulog2 {
 	try std.testing.expectEqual(ulog2(0), 0);
 }
 
-pub const mToF = mtof;
-extern fn mtof(Float) Float;
+pub const freqFromMidi = mtof;
+extern fn mtof(midi: Float) Float;
 
-pub const fToM = ftom;
-extern fn ftom(Float) Float;
+pub const midiFromFreq = ftom;
+extern fn ftom(freq: Float) Float;
 
-pub const rmsToDb = rmstodb;
-extern fn rmstodb(Float) Float;
+pub const dbFromRms = rmstodb;
+extern fn rmstodb(rms: Float) Float;
 
-pub const powToDb = powtodb;
-extern fn powtodb(Float) Float;
+pub const dbFromPow = powtodb;
+extern fn powtodb(pow: Float) Float;
 
-pub const dbToRms = dbtorms;
-extern fn dbtorms(Float) Float;
+pub const rmsFromDb = dbtorms;
+extern fn dbtorms(db: Float) Float;
 
-pub const dbToPow = dbtopow;
-extern fn dbtopow(Float) Float;
+pub const powFromDb = dbtopow;
+extern fn dbtopow(db: Float) Float;
 
 pub const q8Sqrt = q8_sqrt;
 extern fn q8_sqrt(Float) Float;

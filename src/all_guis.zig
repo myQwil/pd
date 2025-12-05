@@ -165,18 +165,21 @@ pub const Gui = extern struct {
 	pub const verifySendNotEqReceive = iemgui_verify_snd_ne_rcv;
 	extern fn iemgui_verify_snd_ne_rcv(*Gui) void;
 
-	/// Get the unexpanded versions of the symbols. Initialize them if necessary.
-	pub const symToDollarArg = iemgui_all_sym2dollararg;
-	extern fn iemgui_all_sym2dollararg(*Gui, [*]*Symbol) void;
+	/// Get the send, receive, and label symbols in their unexpanded "$" form.
+	/// Initialize them if necessary.
+	pub const getDollarSymbols = iemgui_all_sym2dollararg;
+	extern fn iemgui_all_sym2dollararg(*Gui, srl: [*]*Symbol) void;
 
-	pub const dollarArgToSym = iemgui_all_dollararg2sym;
-	extern fn iemgui_all_dollararg2sym(*Gui, [*]*Symbol) void;
+	/// Set the send, receive, and label symbols from an unexpanded "$" form.
+	/// They will be converted to expanded form in the process.
+	pub const setDollarSymbols = iemgui_all_dollararg2sym;
+	extern fn iemgui_all_dollararg2sym(*Gui, srl: [*]*Symbol) void;
 
 	pub const getName = iemgui_new_dogetname;
-	extern fn iemgui_new_dogetname(*Gui, indx: c_uint, argv: [*]Atom) ?*Symbol;
+	extern fn iemgui_new_dogetname(*Gui, index: c_uint, argv: [*]Atom) ?*Symbol;
 
 	pub const getNames = iemgui_new_getnames;
-	extern fn iemgui_new_getnames(*Gui, indx: c_uint, argv: ?[*]Atom) void;
+	extern fn iemgui_new_getnames(*Gui, index: c_uint, argv: ?[*]Atom) void;
 
 	pub const loadColors = iemgui_all_loadcolors;
 	extern fn iemgui_all_loadcolors(*Gui, bcol: *Atom, fcol: *Atom, lcol: *Atom) void;
@@ -184,6 +187,7 @@ pub const Gui = extern struct {
 	pub const setDrawFunctions = iemgui_setdrawfunctions;
 	extern fn iemgui_setdrawfunctions(*Gui, w: *const DrawFunctions) void;
 
+	/// Store saveable symbols (with spaces and dollars escaped) into srl[3] and bflcol[3].
 	pub const save = iemgui_save;
 	extern fn iemgui_save(*Gui, srl: [*]*Symbol, bflcol: [*]*Symbol) void;
 
