@@ -164,20 +164,6 @@ fn baseModule(
 			mod.addCMacro("HAVE_LIBDL", "1");
 			mod.linkSystemLibrary("dl", .{});
 		},
-		.emscripten, .wasi => {
-			const sysroot = b.sysroot
-				orelse @panic("Pass '--sysroot \"$EMSDK/upstream/emscripten\"'");
-			const cache_include = std.fs.path.join(b.allocator, &.{
-				sysroot, "cache", "sysroot", "include",
-			}) catch @panic("Out of memory");
-
-			var dir = std.fs.openDirAbsolute(cache_include, std.fs.Dir.OpenOptions{
-				.access_sub_paths = true,
-				.no_follow = true,
-			}) catch @panic("No emscripten cache. Generate it!");
-			dir.close();
-			mod.addSystemIncludePath(.{ .cwd_relative = cache_include });
-		},
 		.linux, .freebsd => {
 			mod.addCMacro("HAVE_ENDIAN_H", "1");
 			if (os == .linux) {
