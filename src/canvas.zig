@@ -253,10 +253,6 @@ pub const GList = extern struct {
 	pub const MotionFn = fn (*anyopaque, Float, Float, Float) callconv(.c) void;
 	pub const KeyFn = fn (*anyopaque, *Symbol, Float) callconv(.c) void;
 
-	pub const Error = error {
-		GListOpen,
-	};
-
 	pub const Instance = extern struct {
 		/// more, semi-private stuff
 		editor: *Editor.Instance,
@@ -494,15 +490,20 @@ pub const GList = extern struct {
 		nameresult: *[*:0]u8,
 		size: c_uint,
 		bin: bool,
-	) Error!void {
-		if (canvas_open(self, name, ext, dirresult, nameresult,
-			size, @intFromBool(bin)) < 0)
-		{
-			return Error.GListOpen;
-		}
+	) Error!c_uint {
+		const fd = canvas_open(
+			self, name, ext, dirresult, nameresult, size, @intFromBool(bin));
+		return if (fd < 0)
+			Error.GListOpen
+		else
+			@intCast(fd);
 	}
-	extern fn canvas_open(*const GList, [*:0]const u8, [*:0]const u8,
+	extern fn canvas_open(?*const GList, [*:0]const u8, [*:0]const u8,
 		[*:0]u8, *[*:0]u8, c_uint, c_uint) c_int;
+
+	pub const Error = error {
+		GListOpen,
+	};
 
 	pub const sampleRate = canvas_getsr;
 	extern fn canvas_getsr(*GList) Float;
