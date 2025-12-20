@@ -147,7 +147,7 @@ pub const Gui = extern struct {
 	pub const Private = opaque {};
 
 	pub fn defaultSize() c_uint {
-		const current = cnv.GList.current() orelse return 0;
+		const current = GList.getCurrent() orelse return 0;
 		return m.zoomFontHeight(current.font, 1, false) + 2 + 3;
 	}
 
@@ -183,7 +183,7 @@ pub const Gui = extern struct {
 	pub const setDrawFunctions = iemgui_setdrawfunctions;
 	extern fn iemgui_setdrawfunctions(*Gui, w: *const DrawFunctions) void;
 
-	/// Store saveable symbols (with spaces and dollars escaped) into srl[3] and bflcol[3].
+	/// Store saveable symbols (spaces and dollars escaped) into srl[3] and bflcol[3].
 	pub const save = iemgui_save;
 	extern fn iemgui_save(*Gui, srl: [*]*Symbol, bflcol: [*]*Symbol) void;
 

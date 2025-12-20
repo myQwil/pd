@@ -298,8 +298,8 @@ pub const GList = extern struct {
 	pub const canvas = glist_getcanvas;
 	extern fn glist_getcanvas(*GList) *GList;
 
-	pub fn isSelected(self: *GList, obj: *GObj) bool {
-		return (glist_isselected(self, obj) != 0);
+	pub fn isSelected(self: *GList, g: *GObj) bool {
+		return (glist_isselected(self, g) != 0);
 	}
 	extern fn glist_isselected(*GList, *GObj) c_uint;
 
@@ -530,10 +530,10 @@ pub const GList = extern struct {
 	extern fn pd_undo_set_objectstate(
 		*GList, *Pd, *Symbol, c_uint, [*]Atom, c_uint, [*]Atom) void;
 
-	pub const current = canvas_getcurrent;
+	pub const getCurrent = canvas_getcurrent;
 	extern fn canvas_getcurrent() ?*GList;
 
-	pub const environment = canvas_getenv;
+	pub const getEnv = canvas_getenv;
 	extern fn canvas_getenv(*GList) *Environment;
 
 	pub const realizeDollar = canvas_realizedollar;
