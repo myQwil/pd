@@ -2,8 +2,9 @@
 .zig-cache/
 zig-out/
 
-# VSCode Folder
+# IDE Config
 .vscode/
+.zed/
 
 # Upstream Pd folder
 upstream/
