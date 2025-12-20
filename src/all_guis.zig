@@ -146,10 +146,6 @@ pub const Gui = extern struct {
 
 	pub const Private = opaque {};
 
-	pub const Error = error {
-		GuiInit,
-	};
-
 	pub fn defaultSize() c_uint {
 		const current = cnv.GList.current() orelse return 0;
 		return m.zoomFontHeight(current.font, 1, false) + 2 + 3;
@@ -317,8 +313,8 @@ pub const Gui = extern struct {
 	}
 	extern fn iemgui_dialog(*Gui, [*]*Symbol, c_uint, [*]const Atom) c_uint;
 
-	pub fn init(cls: *Class) Error!*Gui {
-		return iemgui_new(cls) orelse Error.GuiInit;
+	pub fn init(cls: *Class) error{GuiInit}!*Gui {
+		return iemgui_new(cls) orelse error.GuiInit;
 	}
 	extern fn iemgui_new(*Class) ?*Gui;
 };

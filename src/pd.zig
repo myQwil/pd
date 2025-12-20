@@ -167,21 +167,6 @@ extern fn class_addcreator(*const NewMethod, *Symbol, c_uint, ...) void;
 // ---------------------------------- BinBuf -----------------------------------
 // -----------------------------------------------------------------------------
 pub const BinBuf = opaque {
-	pub const Error = error {
-		BinBufDuplicate,
-		BinBufFromText,
-		BinBufAdd,
-		BinBufJoin,
-		BinBufAddSemi,
-		BinBufRestore,
-		BinBufRead,
-		BinBufReadViaCanvas,
-		BinBufWrite,
-		BinBufResize,
-		BinBufInit,
-		BinBufFromName,
-	};
-
 	pub const Options = packed struct(c_uint) {
 		skip_shebang: bool = false,
 		map_cr: bool = false,
@@ -193,8 +178,8 @@ pub const BinBuf = opaque {
 	pub const deinit = binbuf_free;
 	extern fn binbuf_free(*BinBuf) void;
 
-	pub fn duplicate(self: *const BinBuf) Error!*BinBuf {
-		return binbuf_duplicate(self) orelse Error.BinBufDuplicate;
+	pub fn duplicate(self: *const BinBuf) error{OutOfMemory}!*BinBuf {
+		return binbuf_duplicate(self) orelse error.OutOfMemory;
 	}
 	extern fn binbuf_duplicate(*const BinBuf) ?*BinBuf;
 
@@ -206,10 +191,10 @@ pub const BinBuf = opaque {
 	}
 	extern fn binbuf_getvec(*const BinBuf) [*]Atom;
 
-	pub fn fromText(self: *BinBuf, txt: []const u8) Error!*void {
+	pub fn fromText(self: *BinBuf, txt: []const u8) error{BinBufNoAtoms}!*void {
 		binbuf_text(self, txt.ptr, txt.len);
 		if (binbuf_getnatom(self) == 0)
-			return Error.BinBufFromText;
+			return error.BinBufNoAtoms;
 	}
 	extern fn binbuf_text(*BinBuf, [*]const u8, usize) void;
 
@@ -225,11 +210,11 @@ pub const BinBuf = opaque {
 	pub const clear = binbuf_clear;
 	extern fn binbuf_clear(*BinBuf) void;
 
-	pub fn add(self: *BinBuf, av: []const Atom) Error!void {
+	pub fn add(self: *BinBuf, av: []const Atom) error{OutOfMemory}!void {
 		const newsize = binbuf_getnatom(self) + av.len;
 		binbuf_add(self, @intCast(av.len), av.ptr);
 		if (binbuf_getnatom(self) != newsize)
-			return Error.BinBufAdd;
+			return error.OutOfMemory;
 	}
 	extern fn binbuf_add(*BinBuf, c_uint, [*]const Atom) void;
 
@@ -238,32 +223,32 @@ pub const BinBuf = opaque {
 	}
 	extern fn binbuf_addv(*BinBuf, fmt: [*:0]const u8, ...) void;
 
-	/// add a binbuf to another one for saving.  Semicolons and commas go to
+	/// Add a binbuf to another one for saving. Semicolons and commas go to
 	/// symbols ";", "'",; and inside symbols, characters ';', ',' and '$' get
-	/// escaped.  LATER also figure out about escaping white space
-	pub fn join(self: *BinBuf, other: *const BinBuf) Error!void {
+	/// escaped. LATER also figure out about escaping white space
+	pub fn join(self: *BinBuf, other: *const BinBuf) error{OutOfMemory}!void {
 		const newsize = binbuf_getnatom(self) + binbuf_getnatom(other);
 		binbuf_addbinbuf(self, other);
 		if (binbuf_getnatom(self) != newsize)
-			return Error.BinBufJoin;
+			return error.OutOfMemory;
 	}
 	extern fn binbuf_addbinbuf(*BinBuf, *const BinBuf) void;
 
-	pub fn addSemi(self: *BinBuf) Error!void {
+	pub fn addSemi(self: *BinBuf) error{OutOfMemory}!void {
 		const newsize = binbuf_getnatom(self) + 1;
 		binbuf_addsemi(self);
 		if (binbuf_getnatom(self) != newsize)
-			return Error.BinBufAddSemi;
+			return error.OutOfMemory;
 	}
 	extern fn binbuf_addsemi(*BinBuf) void;
 
 	/// Supply atoms to a binbuf from a message, making the opposite changes
 	/// from `join`.  The symbol ";" goes to a semicolon, etc.
-	pub fn restore(self: *BinBuf, av: []Atom) Error!void {
+	pub fn restore(self: *BinBuf, av: []Atom) error{OutOfMemory}!void {
 		const newsize = binbuf_getnatom(self) + av.len;
 		binbuf_restore(self, av.len, av.ptr);
 		if (binbuf_getnatom(self) != newsize)
-			return Error.BinBufRestore;
+			return error.OutOfMemory;
 	}
 	extern fn binbuf_restore(*BinBuf, c_uint, [*]const Atom) void;
 
@@ -280,20 +265,21 @@ pub const BinBuf = opaque {
 		filename: [*:0]const u8,
 		dirname: [*:0]const u8,
 		crflag: Options,
-	) Error!void {
+	) error{BinBufRead}!void {
 		if (binbuf_read(self, filename, dirname, crflag) != 0)
-			return Error.BinBufRead;
+			return error.BinBufRead;
 	}
 	extern fn binbuf_read(*BinBuf, [*:0]const u8, [*:0]const u8, Options) c_int;
 
+	/// Read a binbuf from a file, via the search patch of a canvas
 	pub fn readViaCanvas(
 		self: *BinBuf,
 		filename: [*:0]const u8,
 		canvas: *const GList,
 		crflag: Options,
-	) Error!void {
+	) error{BinBufReadViaCanvas}!void {
 		if (binbuf_read_via_canvas(self, filename, canvas, crflag) != 0)
-			return Error.BinBufReadViaCanvas;
+			return error.BinBufReadViaCanvas;
 	}
 	extern fn binbuf_read_via_canvas(*BinBuf, [*:0]const u8, *const GList, Options) c_int;
 
@@ -302,28 +288,26 @@ pub const BinBuf = opaque {
 		filename: [*:0]const u8,
 		dirname: [*:0]const u8,
 		crflag: Options,
-	) Error!void {
+	) error{BinBufWrite}!void {
 		if (binbuf_write(self, filename, dirname, crflag) != 0)
-			return Error.BinBufWrite;
+			return error.BinBufWrite;
 	}
 	extern fn binbuf_write(*const BinBuf, [*:0]const u8, [*:0]const u8, Options) c_int;
 
-	pub fn resize(self: *BinBuf, newsize: c_uint) Error!void {
+	pub fn resize(self: *BinBuf, newsize: c_uint) error{OutOfMemory}!void {
 		if (binbuf_resize(self, newsize) == 0)
-			return Error.BinBufResize;
+			return error.OutOfMemory;
 	}
 	extern fn binbuf_resize(*BinBuf, c_uint) c_uint;
 
-	pub fn init() Error!*BinBuf {
-		return binbuf_new() orelse Error.BinBufInit;
+	pub fn init() error{OutOfMemory}!*BinBuf {
+		return binbuf_new() orelse error.OutOfMemory;
 	}
 	extern fn binbuf_new() ?*BinBuf;
 
 	/// Public interface to get text buffers by name
-	pub fn fromName(sym: *Symbol) Error!*BinBuf {
-		return text_getbufbyname(sym) orelse Error.BinBufFromName;
-	}
-	extern fn text_getbufbyname(*BinBuf) ?*BinBuf;
+	pub const fromName = text_getbufbyname;
+	extern fn text_getbufbyname(name: *Symbol) ?*BinBuf;
 };
 
 pub const evalFile = binbuf_evalfile;
@@ -343,10 +327,6 @@ extern fn binbuf_realizedollsym(*Symbol, c_uint, [*]const Atom, c_uint) ?*Symbol
 // ----------------------------------- Clock -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Clock = opaque {
-	pub const Error = error {
-		ClockInit,
-	};
-
 	pub const deinit = clock_free;
 	extern fn clock_free(*Clock) void;
 
@@ -364,8 +344,8 @@ pub const Clock = opaque {
 	}
 	extern fn clock_setunit(*Clock, f64, c_uint) void;
 
-	pub fn init(owner: *anyopaque, func: *const Method) Error!*Clock {
-		return clock_new(owner, func) orelse Error.ClockInit;
+	pub fn init(owner: *anyopaque, func: *const Method) error{OutOfMemory}!*Clock {
+		return clock_new(owner, func) orelse error.OutOfMemory;
 	}
 	extern fn clock_new(*anyopaque, *const Method) ?*Clock;
 };
@@ -425,16 +405,11 @@ pub extern const garray_class: *Class;
 pub extern const scalar_class: *Class;
 
 pub const GArray = opaque {
-	pub const Error = error {
-		GArrayGetArray,
-		GArrayBadTemplate,
-	};
-
 	pub const redraw = garray_redraw;
 	extern fn garray_redraw(*GArray) void;
 
-	pub fn array(self: *GArray) Error!*Array {
-		return garray_getarray(self) orelse Error.GArrayGetArray;
+	pub fn array(self: *GArray) error{GArrayGetArray}!*Array {
+		return garray_getarray(self) orelse error.GArrayGetArray;
 	}
 	extern fn garray_getarray(*GArray) ?*Array;
 
@@ -457,11 +432,11 @@ pub const GArray = opaque {
 	pub const glist = garray_getglist;
 	extern fn garray_getglist(*GArray) *GList;
 
-	pub fn floatWords(self: *GArray) Error![]Word {
+	pub fn floatWords(self: *GArray) error{GArrayBadTemplate}![]Word {
 		var len: c_uint = undefined;
 		var ptr: [*]Word = undefined;
 		return if (garray_getfloatwords(self, &len, &ptr) != 0)
-			ptr[0..len] else Error.GArrayBadTemplate;
+			ptr[0..len] else error.GArrayBadTemplate;
 	}
 	extern fn garray_getfloatwords(*GArray, *c_uint, vec: *[*]Word) c_uint;
 };
@@ -533,39 +508,33 @@ pub const GPointer = extern struct {
 // ----------------------------------- Inlet -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Inlet = opaque {
-	pub const Error = error {
-		InletInit,
-		InletInitFloat,
-		InletInitSymbol,
-		InletInitSignal,
-		InletInitPointer,
-	};
-
 	pub const deinit = inlet_free;
 	extern fn inlet_free(*Inlet) void;
 
-	pub fn init(obj: *Object, dest: *Pd, from: ?*Symbol, to: ?*Symbol) Error!*Inlet {
-		return inlet_new(obj, dest, from, to) orelse Error.InletInit;
+	pub fn init(
+		obj: *Object, dest: *Pd, from: ?*Symbol, to: ?*Symbol,
+	) error{OutOfMemory}!*Inlet {
+		return inlet_new(obj, dest, from, to) orelse error.OutOfMemory;
 	}
 	extern fn inlet_new(*Object, *Pd, ?*Symbol, ?*Symbol) ?*Inlet;
 
-	pub fn initFloat(obj: *Object, fp: *Float) Error!*Inlet {
-		return floatinlet_new(obj, fp) orelse Error.InletInitFloat;
+	pub fn initFloat(obj: *Object, fp: *Float) error{OutOfMemory}!*Inlet {
+		return floatinlet_new(obj, fp) orelse error.OutOfMemory;
 	}
 	extern fn floatinlet_new(*Object, *Float) ?*Inlet;
 
-	pub fn initSymbol(obj: *Object, sym: **Symbol) Error!*Inlet {
-		return symbolinlet_new(obj, sym) orelse Error.InletInitSymbol;
+	pub fn initSymbol(obj: *Object, sym: **Symbol) error{OutOfMemory}!*Inlet {
+		return symbolinlet_new(obj, sym) orelse error.OutOfMemory;
 	}
 	extern fn symbolinlet_new(*Object, **Symbol) ?*Inlet;
 
-	pub fn initSignal(obj: *Object, f: Float) Error!*Inlet {
-		return signalinlet_new(obj, f) orelse Error.InletInitSignal;
+	pub fn initSignal(obj: *Object, f: Float) error{OutOfMemory}!*Inlet {
+		return signalinlet_new(obj, f) orelse error.OutOfMemory;
 	}
 	extern fn signalinlet_new(*Object, Float) ?*Inlet;
 
-	pub fn initPointer(obj: *Object, gp: *GPointer) Error!*Inlet {
-		return pointerinlet_new(obj, gp) orelse Error.InletInitPointer;
+	pub fn initPointer(obj: *Object, gp: *GPointer) error{OutOfMemory}!*Inlet {
+		return pointerinlet_new(obj, gp) orelse error.OutOfMemory;
 	}
 	extern fn pointerinlet_new(*Object, *GPointer) ?*Inlet;
 };
@@ -664,10 +633,6 @@ pub const Object = extern struct {
 // ---------------------------------- Outlet -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Outlet = opaque {
-	pub const Error = error {
-		OutletInit,
-	};
-
 	pub const deinit = outlet_free;
 	extern fn outlet_free(*Outlet) void;
 
@@ -697,8 +662,8 @@ pub const Outlet = opaque {
 	pub const getSymbol = outlet_getsymbol;
 	extern fn outlet_getsymbol(*Outlet) *Symbol;
 
-	pub fn init(obj: *Object, atype: ?*Symbol) Error!*Outlet {
-		return outlet_new(obj, atype) orelse Error.OutletInit;
+	pub fn init(obj: *Object, atype: ?*Symbol) error{OutletInit}!*Outlet {
+		return outlet_new(obj, atype) orelse error.OutletInit;
 	}
 	extern fn outlet_new(*Object, ?*Symbol) ?*Outlet;
 };
@@ -711,10 +676,6 @@ pub extern const glob_pdobject: *Class;
 
 pub const Pd = extern struct {
 	class: *const Class,
-
-	pub const Error = error {
-		PdInit,
-	};
 
 	pub const deinit = pd_free;
 	extern fn pd_free(*Pd) void;
@@ -787,8 +748,8 @@ pub const Pd = extern struct {
 	pub const newest = pd_newest; // static
 	extern fn pd_newest() *Pd;
 
-	pub fn init(cls: *Class) Error!*Pd {
-		return pd_new(cls) orelse Error.PdInit;
+	pub fn init(cls: *Class) error{OutOfMemory}!*Pd {
+		return pd_new(cls) orelse error.OutOfMemory;
 	}
 	extern fn pd_new(*Class) ?*Pd;
 
@@ -937,10 +898,6 @@ pub const Signal = extern struct {
 	nextused: ?*Signal,
 	nalloc: c_uint,
 
-	pub const Error = error {
-		SignalInit,
-	};
-
 	/// Pop an audio signal from free list or create a new one.
 	///
 	/// If `scalarptr` is nonzero, it's a pointer to a scalar owned by the
@@ -953,8 +910,8 @@ pub const Signal = extern struct {
 		nchans: c_uint,
 		samplerate: Float,
 		scalarptr: *Sample
-	) Error!*Signal {
-		return signal_new(length, nchans, samplerate, scalarptr) orelse Error.SignalInit;
+	) error{SignalInit}!*Signal {
+		return signal_new(length, nchans, samplerate, scalarptr) orelse error.SignalInit;
 	}
 	extern fn signal_new(c_uint, c_uint, Float, *Sample) ?*Signal;
 
@@ -1118,11 +1075,6 @@ extern fn pd_getdspstate() c_uint;
 // ----------------------------------- Value -----------------------------------
 // -----------------------------------------------------------------------------
 pub const value = struct {
-	pub const Error = error {
-		ValueGet,
-		ValueSet,
-	};
-
 	/// Get a pointer to a named floating-point variable.  The variable
 	/// belongs to a `vcommon` object, which is created if necessary.
 	pub const from = value_get;
@@ -1132,15 +1084,15 @@ pub const value = struct {
 	extern fn value_release(name: *Symbol) void;
 
 	/// obtain the float value of a "value" object
-	pub fn get(name: *Symbol, f: *Float) Error!void {
+	pub fn get(name: *Symbol, f: *Float) error{ValueGet}!void {
 		if (value_getfloat(name, f) != 0)
-			return Error.ValueGet;
+			return error.ValueGet;
 	}
 	extern fn value_getfloat(*Symbol, *Float) c_int;
 
-	pub fn set(sym: *Symbol, f: Float) Error!void {
+	pub fn set(sym: *Symbol, f: Float) error{ValueSet}!void {
 		if (value_setfloat(sym, f) != 0)
-			return Error.ValueSet;
+			return error.ValueSet;
 	}
 	extern fn value_setfloat(*Symbol, Float) c_int;
 };

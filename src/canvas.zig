@@ -490,20 +490,16 @@ pub const GList = extern struct {
 		nameresult: *[*:0]u8,
 		size: c_uint,
 		bin: bool,
-	) Error!c_uint {
+	) error{GListOpen}!c_uint {
 		const fd = canvas_open(
 			self, name, ext, dirresult, nameresult, size, @intFromBool(bin));
 		return if (fd < 0)
-			Error.GListOpen
+			error.GListOpen
 		else
 			@intCast(fd);
 	}
 	extern fn canvas_open(?*const GList, [*:0]const u8, [*:0]const u8,
 		[*:0]u8, *[*:0]u8, c_uint, c_uint) c_int;
-
-	pub const Error = error {
-		GListOpen,
-	};
 
 	pub const sampleRate = canvas_getsr;
 	extern fn canvas_getsr(*GList) Float;

@@ -114,10 +114,6 @@ pub const Class = extern struct {
 		_unused: u1,
 	};
 
-	pub const Error = error {
-		ClassInit,
-	};
-
 	pub const Options = struct {
 		/// non-canvasable pd such as an inlet
 		bare: bool = false,
@@ -236,14 +232,14 @@ pub const Class = extern struct {
 		new_method: ?*const m.NewFn(T, args),
 		free_method: ?*const fn(*T) callconv(.c) void,
 		options: Options,
-	) Error!*Class {
+	) error{ClassInit}!*Class {
 		// printStruct(T, name); // uncomment this to view struct field order
 		const sym: *Symbol = .gen(name.ptr);
 		const newm: ?*const NewMethod = @ptrCast(new_method);
 		const freem: ?*const Method = @ptrCast(free_method);
 		return @call(.auto, pd_class_new,
 			.{ sym, newm, freem, @sizeOf(T), options.toInt() } ++ Atom.Type.tuple(args)
-		) orelse Error.ClassInit;
+		) orelse error.ClassInit;
 	}
 	extern fn pd_class_new(
 		*Symbol, ?*const NewMethod, ?*const Method, usize, c_uint, c_uint, ...,
