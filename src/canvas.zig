@@ -647,19 +647,31 @@ pub const Template = extern struct {
 // ---------------------------------- Widgets ----------------------------------
 // -----------------------------------------------------------------------------
 pub const GetRectFn = fn (
-	*GObj, *GList, *c_int, *c_int, *c_int, *c_int,
+	*GObj, *GList,
+	x1: *c_int, y1: *c_int,
+	x2: *c_int, y2: *c_int,
+) callconv(.c) void;
+
+pub const DisplaceFn = fn (
+	*GObj, *GList,
+	dx: c_int, dy: c_int,
 ) callconv(.c) void;
 
 pub const ClickFn = fn (
-	*GObj, *GList, c_int, c_int, c_int, c_int, c_int, c_int,
+	*GObj, *GList,
+	xpix: c_int, ypix: c_int,
+	shift: c_int, alt: c_int, dbl_click: c_int, doit: c_int,
 ) callconv(.c) c_int;
 
-pub const DisplaceFn = fn (*GObj, *GList, c_int, c_int) callconv(.c) void;
-pub const SelectFn = fn (*GObj, *GList, c_uint) callconv(.c) void;
-pub const ActivateFn = fn (*GObj, *GList, c_uint) callconv(.c) void;
+pub const VisFn = fn (*GObj, *GList, state: c_int) callconv(.c) void;
+pub const SelectFn = fn (*GObj, *GList, state: c_int) callconv(.c) void;
+pub const ActivateFn = fn (*GObj, *GList, state: c_int) callconv(.c) void;
 pub const DeleteFn = fn (*GObj, *GList) callconv(.c) void;
-pub const VisFn = fn (*GObj, *GList, c_uint) callconv(.c) void;
 
+/// Functions used to define graphical behavior for `GObj`s.
+/// We don't use Pd methods because Pd's typechecking can't specify the
+/// types of pointer arguments. Also it's more convenient this way, since
+/// every "patchable" object can just get the "text" behaviors.
 pub const WidgetBehavior = extern struct {
 	getrect: ?*const GetRectFn = null,
 	displace: ?*const DisplaceFn = null,
@@ -668,13 +680,6 @@ pub const WidgetBehavior = extern struct {
 	delete: ?*const DeleteFn = null,
 	vis: ?*const VisFn = null,
 	click: ?*const ClickFn = null,
-
-	pub const iem_default: WidgetBehavior = .{
-		.displace = &iem.displace,
-		.select = &iem.select,
-		.delete = &iem.delete,
-		.vis = &iem.vis,
-	};
 };
 
 pub const parent = struct {
