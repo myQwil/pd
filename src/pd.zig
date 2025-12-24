@@ -699,15 +699,15 @@ pub const Outlet = opaque {
 	pub const symbol = outlet_symbol;
 	extern fn outlet_symbol(*Outlet, *Symbol) void;
 
-	pub fn list(self: *Outlet, sym: ?*Symbol, av: []Atom) void {
+	pub fn list(self: *Outlet, sym: ?*Symbol, av: []const Atom) void {
 		outlet_list(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn outlet_list(*Outlet, ?*Symbol, c_uint, [*]Atom) void;
+	extern fn outlet_list(*Outlet, ?*Symbol, c_uint, [*]const Atom) void;
 
-	pub fn anything(self: *Outlet, sym: *Symbol, av: []Atom) void {
+	pub fn anything(self: *Outlet, sym: *Symbol, av: []const Atom) void {
 		outlet_anything(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn outlet_anything(*Outlet, *Symbol, c_uint, [*]Atom) void;
+	extern fn outlet_anything(*Outlet, *Symbol, c_uint, [*]const Atom) void;
 
 	/// Get the outlet's declared symbol
 	pub const getSymbol = outlet_getsymbol;
@@ -755,20 +755,20 @@ pub const Pd = extern struct {
 	pub const symbol = pd_symbol;
 	extern fn pd_symbol(*Pd, *Symbol) void;
 
-	pub fn list(self: *Pd, sym: ?*Symbol, av: []Atom) void {
+	pub fn list(self: *Pd, sym: ?*Symbol, av: []const Atom) void {
 		pd_list(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn pd_list(*Pd, ?*Symbol, c_uint, [*]Atom) void;
+	extern fn pd_list(*Pd, ?*Symbol, c_uint, [*]const Atom) void;
 
-	pub fn anything(self: *Pd, sym: *Symbol, av: []Atom) void {
+	pub fn anything(self: *Pd, sym: *Symbol, av: []const Atom) void {
 		pd_anything(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn pd_anything(*Pd, *Symbol, c_uint, [*]Atom) void;
+	extern fn pd_anything(*Pd, *Symbol, c_uint, [*]const Atom) void;
 
-	pub fn typedMess(self: *Pd, sym: ?*Symbol, av: []Atom) void {
+	pub fn typedMess(self: *Pd, sym: *Symbol, av: []const Atom) void {
 		pd_typedmess(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn pd_typedmess(*Pd, ?*Symbol, c_uint, [*]Atom) void;
+	extern fn pd_typedmess(*Pd, *Symbol, c_uint, [*]const Atom) void;
 
 	/// Convenience routine giving a stdarg interface to `typedmess()`.
 	/// Only ten args supported; it seems unlikely anyone will need more since
