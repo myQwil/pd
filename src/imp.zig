@@ -196,6 +196,7 @@ pub const Class = extern struct {
 	pub const saveFn = class_getsavefn;
 	extern fn class_getsavefn(*const Class) ?*const SaveFn;
 
+	/// Set a function to start the properties dialog
 	pub const setPropertiesFn = class_setpropertiesfn;
 	extern fn class_setpropertiesfn(*Class, ?*const PropertiesFn) void;
 

@@ -1,8 +1,8 @@
 const m = @import("pd.zig");
-const iem = m.iem;
 
 const Atom = m.Atom;
 const Float = m.Float;
+const Rect = m.Rect;
 const Symbol = m.Symbol;
 const Word = m.Word;
 
@@ -36,7 +36,43 @@ pub const Array = extern struct {
 
 // ---------------------------------- Editor -----------------------------------
 // -----------------------------------------------------------------------------
-const RText = opaque {};
+const RText = opaque {
+	pub fn getRect(self: *RText) Rect(c_int) {
+		var x1: c_int = undefined;
+		var y1: c_int = undefined;
+		var x2: c_int = undefined;
+		var y2: c_int = undefined;
+		rtext_getrect(self, &x1, &y1, &x2, &y2);
+		return .{
+			.p1 = .{ x1, y1 },
+			.p2 = .{ x2, y2 },
+		};
+	}
+	extern fn rtext_getrect(*RText, *c_int, *c_int, *c_int, *c_int) void;
+
+	pub const displace = rtext_displace;
+	extern fn rtext_displace(*RText, dx: c_int, dy: c_int) void;
+
+	pub fn select(self: *RText, state: bool) void {
+		rtext_select(self, @intFromBool(state));
+	}
+	extern fn rtext_select(*RText, c_int) void;
+
+	pub fn activate(self: *RText, state: bool) void {
+		rtext_activate(self, @intFromBool(state));
+	}
+	extern fn rtext_activate(*RText, c_int) void;
+
+	pub const getTag = rtext_gettag;
+	extern fn rtext_gettag(*RText) [*:0]const u8;
+
+	pub const draw = rtext_draw;
+	extern fn rtext_draw(*RText) void;
+
+	pub const erase = rtext_erase;
+	extern fn rtext_erase(*RText) void;
+};
+
 const GuiConnect = opaque {};
 const OutConnect = opaque {};
 
@@ -161,7 +197,7 @@ pub const GList = extern struct {
 	/// incremented when pointers might be stale
 	valid: c_int,
 	/// parent glist, supercanvas, or 0 if none
-	owner: *GList,
+	owner: ?*GList,
 	/// width in pixels (on parent, if a graph)
 	pixwidth: c_uint,
 	/// height in pixels (on parent, if a graph)
@@ -203,7 +239,7 @@ pub const GList = extern struct {
 	/// X coordinate for Y coordinate labels
 	ylabelx: Float,
 	/// editor structure when visible
-	editor: *Editor,
+	editor: ?*Editor,
 	/// symbol bound here
 	name: *Symbol,
 	/// nominal font size in points, e.g., 10
@@ -295,7 +331,7 @@ pub const GList = extern struct {
 	pub const clear = glist_clear;
 	extern fn glist_clear(*GList) void;
 
-	pub const canvas = glist_getcanvas;
+	pub const getCanvas = glist_getcanvas;
 	extern fn glist_getcanvas(*GList) *GList;
 
 	pub fn isSelected(self: *GList, g: *GObj) bool {
@@ -371,11 +407,38 @@ pub const GList = extern struct {
 	pub const pixelsToY = glist_pixelstoy;
 	extern fn glist_pixelstoy(*GList, ypix: Float) Float;
 
-	pub const xToPixels = glist_xtopixels;
-	extern fn glist_xtopixels(*GList, xval: Float) Float;
+	/// convert a coordinate value to a pixel location in window
+	pub fn toPixels(self: *const GList, val: @Vector(2, Float)) @Vector(2, Float) {
+		const FVec2 = @Vector(2, Float);
+		const UVec2 = @Vector(2, c_uint);
+		const rect: Rect(Float) = .{
+			.p1 = .{ self.x1, self.x2 },
+			.p2 = .{ self.x2, self.y2 },
+		};
 
-	pub const yToPixels = glist_ytopixels;
-	extern fn glist_ytopixels(*GList, yval: Float) Float;
+		if (!self.flags.isgraph) {
+			const zoom: Float = @floatFromInt(self.zoom);
+			return (val - rect.p1) * FVec2{ zoom, zoom } / rect.size();
+		}
+		if (self.flags.havewindow) {
+			const screen_size: FVec2 = @floatFromInt((Rect(c_int){
+				.p1 = .{ self.screenx1, self.screeny1 },
+				.p2 = .{ self.screenx2, self.screeny2 },
+			}).size());
+			return screen_size * (val - rect.p1) / rect.size();
+		}
+		if (self.owner) |owner| {
+			const zoom: Float = @floatFromInt(self.zoom);
+			const size: FVec2 = @floatFromInt(UVec2{ self.pixwidth, self.pixheight });
+			const p1: FVec2 = @floatFromInt(self.obj.pos(owner));
+			const p2 = p1 + FVec2{ zoom, zoom } * size;
+
+			return p1 + (p2 - p1) * (val - rect.p1) / rect.size();
+		} else {
+			m.post.bug("GList.toPixels", .{});
+			return val;
+		}
+	}
 
 	pub const dpixToDx = glist_dpixtodx;
 	extern fn glist_dpixtodx(*GList, dxpix: Float) Float;
@@ -451,9 +514,12 @@ pub const GList = extern struct {
 	pub const destroyEditor = canvas_destroy_editor;
 	extern fn canvas_destroy_editor(*GList) void;
 
+	pub const deleteLinesFor = canvas_deletelinesfor;
+	extern fn canvas_deletelinesfor(*GList, *Object) void;
+
 	/// Kill all lines for one inlet or outlet.
 	pub const deleteLinesForIo = canvas_deletelinesforio;
-	extern fn canvas_deletelinesforio(*GList, text: *Object, ?*Inlet, ?*Outlet) void;
+	extern fn canvas_deletelinesforio(*GList, *Object, ?*Inlet, ?*Outlet) void;
 
 	pub const makeFilename = canvas_makefilename;
 	extern fn canvas_makefilename(
@@ -522,13 +588,13 @@ pub const GList = extern struct {
 
 	pub fn setUndoState(
 		self: *GList, x: *Pd, s: *Symbol,
-		undo: []Atom, redo: []Atom,
+		undo: []const Atom, redo: []const Atom,
 	) void {
 		pd_undo_set_objectstate(self, x, s,
 			@intCast(undo.len), undo.ptr, @intCast(redo.len), redo.ptr);
 	}
 	extern fn pd_undo_set_objectstate(
-		*GList, *Pd, *Symbol, c_uint, [*]Atom, c_uint, [*]Atom) void;
+		*GList, *Pd, *Symbol, c_uint, [*]const Atom, c_uint, [*]const Atom) void;
 
 	pub const getCurrent = canvas_getcurrent;
 	extern fn canvas_getcurrent() ?*GList;
@@ -547,6 +613,25 @@ pub const GList = extern struct {
 
 	pub const fixLinesFor = canvas_fixlinesfor;
 	extern fn canvas_fixlinesfor(*GList, *Object) void;
+
+	/// Find the RText that goes with a text item. Return `null` if the
+	/// text item is invisible, either because the glist itself is, or because
+	/// the item is in a GOP subpatch and its (x,y) origin is outside the GOP
+	/// area (Or if it's within a nested GOP which itself isn't visible). In
+	/// some cases, the RText is created in order to check the bounds rectangle,
+	/// in which case it was created even if invisible. But since `gobj_shouldvis()`
+	/// first checks the upper right corner (x,y) before creating the RText, the
+	/// majority of invisible 'text' objects never get RTexts created for them.
+	pub fn getRText(
+		self: *GList,
+		who: *Object,
+		/// whether we're being called within `gobj_shouldvis`,
+      /// in which case we can't just go call `shouldvis` back from here.
+		really: bool,
+	) ?*RText {
+		return glist_getrtext(self, who, @intFromBool(really));
+	}
+	extern fn glist_getrtext(*GList, *Object, c_int) ?*RText;
 };
 
 

@@ -327,7 +327,7 @@ pub fn setSelected(obj: *GObj, list: *GList, selected: bool) void {
 }
 /// use `setSelected` when directly calling within zig
 pub const select = iemgui_select;
-extern fn iemgui_select(*GObj, *GList, c_uint) void;
+extern fn iemgui_select(*GObj, *GList, c_int) void;
 
 pub const delete = iemgui_delete;
 extern fn iemgui_delete(*GObj, *GList) void;
@@ -337,4 +337,4 @@ pub fn setVisible(obj: *GObj, list: *GList, visible: bool) void {
 }
 /// use `setVisible` when directly calling within zig
 pub const vis = iemgui_vis;
-extern fn iemgui_vis(*GObj, *GList, c_uint) void;
+extern fn iemgui_vis(*GObj, *GList, c_int) void;

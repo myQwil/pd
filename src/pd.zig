@@ -10,6 +10,17 @@ pub extern const pd_compatibilitylevel: c_int;
 pub const Float = std.meta.Float(opt.float_size);
 pub const Sample = Float;
 
+pub fn Rect(T: type) type { return struct {
+	/// top-left
+	p1: @Vector(2, T),
+	/// bottom-right
+	p2: @Vector(2, T),
+
+	pub fn size(self: *const @This()) @Vector(2, T) {
+		return self.p2 - self.p1;
+	}
+};}
+
 pub const Method = fn () callconv(.c) void;
 pub const NewMethod = fn () callconv(.c) ?*anyopaque;
 
@@ -607,6 +618,19 @@ pub const Object = extern struct {
 		atom = 3,
 	};
 
+	pub fn drawBorder(
+		self: *Object,
+		glist: *GList,
+		tag: [*:0]const u8,
+		firsttime: bool,
+	) void {
+		text_drawborder(self, glist, tag, @intFromBool(firsttime));
+	}
+	extern fn text_drawborder(*Object, *GList, [*:0]const u8, c_int) void;
+
+	pub const eraseBorder = text_eraseborder;
+	extern fn text_eraseborder(self: *Object, glist: *GList, tag: [*:0]const u8) void;
+
 	pub fn list(self: *Object, sym: *Symbol, av: []Atom) void {
 		obj_list(self, sym, av.len, av.ptr);
 	}
@@ -615,11 +639,38 @@ pub const Object = extern struct {
 	pub const saveFormat = obj_saveformat;
 	extern fn obj_saveformat(*const Object, *BinBuf) void;
 
-	pub const xPix = text_xpix;
-	extern fn text_xpix(*Object, *GList) c_int;
+	/// Get the window location in pixels of a "text" object.
+	/// The object's x and y positions are in pixels when the glist they're
+	/// in is toplevel. Otherwise, if it's a new-style graph-on-parent
+	/// (so gl_goprect is set) we use the offset into the framing subrectangle
+	/// as an offset into the parent rectangle. Finally, it might be an old,
+	/// proportional-style GOP. In this case we do a coordinate transformation.
+	pub fn pos(self: *const Object, glist: *const GList) @Vector(2, c_int) {
+		const FVec2 = @Vector(2, Float);
+		const IVec2 = @Vector(2, c_int);
+		const pix: IVec2 = @intCast(@Vector(2, c_short){ self.xpix, self.ypix });
 
-	pub const yPix = text_ypix;
-	extern fn text_ypix(*Object, *GList) c_int;
+		if (glist.flags.havewindow or !glist.flags.isgraph) {
+			const zoom: c_int = @intCast(glist.zoom);
+			return pix * IVec2{ zoom, zoom };
+		}
+		const rect: Rect(Float) = .{
+			.p1 = .{ glist.x1, glist.y1 },
+			.p2 = .{ glist.x2, glist.y2 },
+		};
+		if (glist.flags.goprect) {
+			const zoom: c_int = @intCast(glist.zoom);
+			const margin: IVec2 = .{ glist.xmargin, glist.ymargin };
+			const p1: IVec2 = @intFromFloat(glist.toPixels(rect.p1));
+			return p1 + IVec2{ zoom, zoom } * (pix - margin);
+		}
+		const fpix: FVec2 = @floatFromInt(pix);
+		const screen_size: FVec2 = @floatFromInt((Rect(c_int){
+			.p1 = .{ glist.screenx1, glist.screeny1 },
+			.p2 = .{ glist.screenx2, glist.screeny2 },
+		}).size());
+		return @intFromFloat(glist.toPixels(rect.p1 + rect.size() * fpix / screen_size));
+	}
 
 	pub const outlet = Outlet.init;
 	pub const inlet = Inlet.init;
@@ -718,6 +769,14 @@ pub const Pd = extern struct {
 		pd_typedmess(self, sym, @intCast(av.len), av.ptr);
 	}
 	extern fn pd_typedmess(*Pd, ?*Symbol, c_uint, [*]Atom) void;
+
+	/// Convenience routine giving a stdarg interface to `typedmess()`.
+	/// Only ten args supported; it seems unlikely anyone will need more since
+	/// longer messages are likely to be programmatically generated anyway.
+	pub fn vMess(self: *Pd, s: *Symbol, fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, pd_vmess, .{ self, s, fmt } ++ args);
+	}
+	extern fn pd_vmess(*Pd, *Symbol, [*:0]const u8, ...) void;
 
 	pub fn forwardMess(self: *Pd, av: []Atom) void {
 		pd_forwardmess(self, @intCast(av.len), av.ptr);
