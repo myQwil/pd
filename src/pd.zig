@@ -604,7 +604,7 @@ pub const Object = extern struct {
 	/// y location (within the toplevel)
 	ypix: c_short,
 	/// requested width in chars, 0 if auto
-	width: c_short,
+	width: c_ushort,
 	type: Type,
 
 	const Type = enum(u8) {
