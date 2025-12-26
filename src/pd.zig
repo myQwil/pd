@@ -1285,7 +1285,40 @@ extern fn qsqrt(Float) Float;
 pub const qRsqrt = qrsqrt;
 extern fn qrsqrt(Float) Float;
 
-pub fn vMess(destination: ?[*:0]const u8, fmt: ?[*:0]const u8, args: anytype) void {
+/// Send a message to the GUI, with a simplified formatting syntax.
+/// The usage of `null` as a `destination` is discouraged.
+///
+/// depending on the format specifiers, one or more values are passed
+/// - `f` : `f64` : a floating point number
+/// - `i` : `c_int` : an integer number
+/// - `s` : `[*:0]const u8` : a string
+/// - `r` : `[*:0]const u8` : a raw string
+/// - `x` : `*anyopaque` : a generic pointer
+/// - `o` : `*Object` : a graphical object
+/// - `^` : `*GList` : a toplevel window (legacy)
+/// - `c` : `*GList` : a canvas (on a window)
+/// - `F` : `c_uint`, `[*]Float`: array of t_float's
+/// - `S` : `c_uint`, `[*][*:0]const u8`: array of strings
+/// - `R` : `c_uint`, `[*][*:0]const u8`: array of raw strings
+/// - `a` : `c_uint`, `[*]const Atom`: list of atoms
+/// - `A` : `c_uint`, `[*]const Atom`: array of atoms
+/// - `w` : `c_uint`, `[*]const Word`: list of floatwords
+/// - `W` : `c_uint`, `[*]const Word`: array of floatwords
+/// - `m` : `*Symbol`, `c_uint`, `[*]Atom` : a Pd message
+/// - `p` : `c_uint`, `[*]const u8`: a pascal string (explicit size; not \0-terminated)
+/// - `k` : `c_int`: a color (or kolor, if you prefer)
+/// - ` ` : ignored
+///
+/// the use of the specifiers 'x^' is discouraged.
+/// raw-strings ('rR') should only be used for constant, well-known strings.
+pub fn vMess(
+	/// receiver on the GUI side (e.g. a Tcl/Tk 'proc')
+	destination: ?[*:0]const u8,
+	/// string of format specifiers
+	fmt: ?[*:0]const u8,
+	/// values according to the format specifiers
+	args: anytype
+) void {
 	@call(.auto, pdgui_vmess, .{ destination, fmt } ++ args);
 }
 extern fn pdgui_vmess(?[*:0]const u8, ?[*:0]const u8, ...) void;
