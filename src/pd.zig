@@ -110,16 +110,16 @@ pub const ArgError = error {
 
 pub inline fn floatArg(idx: usize, av: []const Atom) ArgError!Float {
 	return if (idx < av.len)
-		av[idx].getFloat() orelse ArgError.WrongAtomType
+		av[idx].getFloat() orelse error.WrongAtomType
 	else
-		ArgError.IndexOutOfBounds;
+		error.IndexOutOfBounds;
 }
 
 pub inline fn symbolArg(idx: usize, av: []const Atom) ArgError!*Symbol {
 	return if (idx < av.len)
-		av[idx].getSymbol() orelse ArgError.WrongAtomType
+		av[idx].getSymbol() orelse error.WrongAtomType
 	else
-		ArgError.IndexOutOfBounds;
+		error.IndexOutOfBounds;
 }
 
 fn typesFromAtoms(comptime args: []const Atom.Type) [args.len]type {
