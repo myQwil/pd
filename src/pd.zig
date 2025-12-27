@@ -197,7 +197,7 @@ pub const BinBuf = opaque {
 	pub const len = binbuf_getnatom;
 	extern fn binbuf_getnatom(*const BinBuf) c_uint;
 
-	pub fn vec(self: *BinBuf) []Atom {
+	pub fn getVec(self: *BinBuf) []Atom {
 		return binbuf_getvec(self)[0..binbuf_getnatom(self)];
 	}
 	extern fn binbuf_getvec(*const BinBuf) [*]Atom;
@@ -210,7 +210,7 @@ pub const BinBuf = opaque {
 	extern fn binbuf_text(*BinBuf, [*]const u8, usize) void;
 
 	/// Convert a binbuf to text. No null termination.
-	pub fn text(self: *const BinBuf) []u8 {
+	pub fn toText(self: *const BinBuf) []u8 {
 		var ptr: [*]u8 = undefined;
 		var n: c_uint = undefined;
 		binbuf_gettext(self, &ptr, &n);
@@ -229,8 +229,15 @@ pub const BinBuf = opaque {
 	}
 	extern fn binbuf_add(*BinBuf, c_uint, [*]const Atom) void;
 
-	pub fn addV(self: *BinBuf, fmt: [*:0]const u8, args: anytype) void {
-		@call(.auto, binbuf_addv, .{ self, fmt } ++ args);
+	pub fn addV(
+		self: *BinBuf,
+		fmt: [:0]const u8,
+		args: anytype,
+	) error{OutOfMemory}!void {
+		const newsize = binbuf_getnatom(self) + fmt.len;
+		@call(.auto, binbuf_addv, .{ self, fmt.ptr } ++ args);
+		if (binbuf_getnatom(self) != newsize)
+			return error.OutOfMemory;
 	}
 	extern fn binbuf_addv(*BinBuf, fmt: [*:0]const u8, ...) void;
 
