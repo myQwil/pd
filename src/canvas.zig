@@ -36,7 +36,7 @@ pub const Array = extern struct {
 
 // ---------------------------------- Editor -----------------------------------
 // -----------------------------------------------------------------------------
-const RText = opaque {
+pub const RText = opaque {
 	pub fn getRect(self: *RText) Rect(c_int) {
 		var x1: c_int = undefined;
 		var y1: c_int = undefined;
@@ -626,7 +626,7 @@ pub const GList = extern struct {
 		self: *GList,
 		who: *Object,
 		/// whether we're being called within `gobj_shouldvis`,
-      /// in which case we can't just go call `shouldvis` back from here.
+		/// in which case we can't just go call `shouldvis` back from here.
 		really: bool,
 	) ?*RText {
 		return glist_getrtext(self, who, @intFromBool(really));

@@ -24,11 +24,12 @@ pub fn Rect(T: type) type { return struct {
 pub const Method = fn () callconv(.c) void;
 pub const NewMethod = fn () callconv(.c) ?*anyopaque;
 
+pub const Array = cnv.Array;
 pub const Class = imp.Class;
 pub const GList = cnv.GList;
-pub const Array = cnv.Array;
 pub const GObj = cnv.GObj;
 pub const Gui = iem.Gui;
+pub const RText = cnv.RText;
 
 pub const Word = extern union {
 	// we're going to trust pd to give us valid pointers of the respective types
