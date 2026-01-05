@@ -639,7 +639,7 @@ pub const GList = extern struct {
 // -----------------------------------------------------------------------------
 pub const GObj = extern struct {
 	pd: Pd,
-	next: ?*GObj,
+	next: ?*GObj = null,
 
 	pub const getRect = gobj_getrect;
 	extern fn gobj_getrect(

@@ -602,18 +602,18 @@ pub const Object = extern struct {
 	/// header for graphical object
 	g: GObj,
 	/// holder for the text
-	binbuf: *BinBuf,
+	binbuf: ?*BinBuf = null,
 	/// linked list of outlets
-	outlets: ?*Outlet,
+	outlets: ?*Outlet = null,
 	/// linked list of inlets
-	inlets: ?*Inlet,
+	inlets: ?*Inlet = null,
 	/// x location (within the toplevel)
-	xpix: c_short,
+	xpix: c_short = 0,
 	/// y location (within the toplevel)
-	ypix: c_short,
+	ypix: c_short = 0,
 	/// requested width in chars, 0 if auto
-	width: c_ushort,
-	type: Type,
+	width: c_ushort = 0,
+	type: Type = .text,
 
 	const Type = enum(u8) {
 		/// just a textual comment
