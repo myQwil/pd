@@ -561,8 +561,7 @@ pub const GList = extern struct {
 			self, name, ext, dirresult, nameresult, size, @intFromBool(bin));
 		return if (fd < 0)
 			error.GListOpen
-		else
-			@intCast(fd);
+		else @intCast(fd);
 	}
 	extern fn canvas_open(?*const GList, [*:0]const u8, [*:0]const u8,
 		[*:0]u8, *[*:0]u8, c_uint, c_uint) c_int;

@@ -99,7 +99,7 @@ pub const Class = extern struct {
 	pub const Flags = packed struct(u8) {
 		/// true if is a gobj
 		gobj: bool,
-		/// true if we have a t_object header
+		/// true if we have an `Object` header
 		patchable: bool,
 		/// if so, true if drawing first inlet
 		first_in: bool,

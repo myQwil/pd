@@ -112,15 +112,13 @@ pub const ArgError = error {
 pub inline fn floatArg(idx: usize, av: []const Atom) ArgError!Float {
 	return if (idx < av.len)
 		av[idx].getFloat() orelse error.WrongAtomType
-	else
-		error.IndexOutOfBounds;
+	else error.IndexOutOfBounds;
 }
 
 pub inline fn symbolArg(idx: usize, av: []const Atom) ArgError!*Symbol {
 	return if (idx < av.len)
 		av[idx].getSymbol() orelse error.WrongAtomType
-	else
-		error.IndexOutOfBounds;
+	else error.IndexOutOfBounds;
 }
 
 fn typesFromAtoms(comptime args: []const Atom.Type) [args.len]type {
@@ -154,11 +152,12 @@ pub fn NewFn(T: type, comptime args: []const Atom.Type) type {
 		.is_generic = false,
 		.is_var_args = false,
 		.return_type = ?*T,
-		.params = if (args.len == 0) &.{} else &paramsFromTypes(
+		.params = if (args.len == 0)
+			&.{}
+		else &paramsFromTypes(
 			if (args[0] == .gimme)
 				&.{ *Symbol, c_uint, [*]Atom }
-			else
-				&typesFromAtoms(args)
+			else &typesFromAtoms(args)
 		),
 	}});
 }
@@ -198,10 +197,12 @@ pub const BinBuf = opaque {
 	pub const len = binbuf_getnatom;
 	extern fn binbuf_getnatom(*const BinBuf) c_uint;
 
-	pub fn getVec(self: *BinBuf) []Atom {
-		return binbuf_getvec(self)[0..binbuf_getnatom(self)];
-	}
+	pub const getVec = binbuf_getvec;
 	extern fn binbuf_getvec(*const BinBuf) [*]Atom;
+
+	pub fn getSlice(self: *BinBuf) []Atom {
+		return self.getVec()[0..binbuf_getnatom(self)];
+	}
 
 	pub fn fromText(self: *BinBuf, txt: []const u8) error{BinBufNoAtoms}!*void {
 		binbuf_text(self, txt.ptr, txt.len);
