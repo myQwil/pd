@@ -121,10 +121,8 @@ pub const Editor = extern struct {
 	guiconnect: *GuiConnect,
 	/// glist which owns this
 	glist: *GList,
-	/// xpos on last mousedown or motion event
-	xwas: c_int,
-	/// ypos on last mousedown or motion event
-	ywas: c_int,
+	/// pos on last mousedown or motion event
+	was: [2]c_int,
 	/// indices for the selected line if any
 	selectline_index1: c_int,
 	/// (only valid if e_selectedline is set)
@@ -135,10 +133,8 @@ pub const Editor = extern struct {
 	flags: Flags,
 	/// clock to filter GUI move messages
 	clock: *Clock,
-	/// xpos for next move event
-	xnew: c_int,
-	/// ypos for next move event
-	ynew: c_int,
+	/// pos for next move event
+	new: [2]c_int,
 
 	pub const Flags = packed struct(c_uint) {
 		/// action to take on motion
@@ -198,30 +194,18 @@ pub const GList = extern struct {
 	valid: c_int,
 	/// parent glist, supercanvas, or 0 if none
 	owner: ?*GList,
-	/// width in pixels (on parent, if a graph)
-	pixwidth: c_uint,
-	/// height in pixels (on parent, if a graph)
-	pixheight: c_uint,
-	/// bounding rectangle in our own coordinates (x1)
-	x1: Float,
-	/// bounding rectangle in our own coordinates (y1)
-	y1: Float,
-	/// bounding rectangle in our own coordinates (x2)
-	x2: Float,
-	/// bounding rectangle in our own coordinates (y2)
-	y2: Float,
-	/// screen coordinates when toplevel (x1)
-	screenx1: c_int,
-	/// screen coordinates when toplevel (y1)
-	screeny1: c_int,
-	/// screen coordinates when toplevel (x2)
-	screenx2: c_int,
-	/// screen coordinates when toplevel (y2)
-	screeny2: c_int,
-	/// X origin for GOP rectangle
-	xmargin: c_int,
-	/// Y origin for GOP rectangle
-	ymargin: c_int,
+	/// width and height in pixels (on parent, if a graph)
+	pixsize: [2]c_uint,
+	/// bounding rectangle in our own coordinates (upper-left)
+	p1: [2]Float,
+	/// bounding rectangle in our own coordinates (lower-right)
+	p2: [2]Float,
+	/// screen coordinates when toplevel (upper-left)
+	screen1: [2]c_int,
+	/// screen coordinates when toplevel (lower-right)
+	screen2: [2]c_int,
+	/// origin for GOP rectangle
+	margin: [2]c_int,
 	/// ticks marking X values
 	xtick: Tick,
 	/// number of X coordinate labels
@@ -309,9 +293,7 @@ pub const GList = extern struct {
 		/// counter for $0
 		dollarzero: c_uint,
 		/// state for dragging
-		graph_lastxpix: Float,
-		/// state for dragging
-		graph_lastypix: Float,
+		graph_lastpix: [2]Float,
 		/// color for foreground
 		foregroundcolor: c_uint,
 		/// color for background
@@ -411,10 +393,7 @@ pub const GList = extern struct {
 	pub fn toPixels(self: *const GList, val: @Vector(2, Float)) @Vector(2, Float) {
 		const FVec2 = @Vector(2, Float);
 		const UVec2 = @Vector(2, c_uint);
-		const rect: Rect(Float) = .{
-			.p1 = .{ self.x1, self.x2 },
-			.p2 = .{ self.x2, self.y2 },
-		};
+		const rect: Rect(Float) = .{ .p1 = self.p1, .p2 = self.p2 };
 
 		if (!self.flags.isgraph) {
 			const zoom: Float = @floatFromInt(self.zoom);
@@ -422,14 +401,14 @@ pub const GList = extern struct {
 		}
 		if (self.flags.havewindow) {
 			const screen_size: FVec2 = @floatFromInt((Rect(c_int){
-				.p1 = .{ self.screenx1, self.screeny1 },
-				.p2 = .{ self.screenx2, self.screeny2 },
+				.p1 = self.screen1,
+				.p2 = self.screen2,
 			}).size());
 			return screen_size * (val - rect.p1) / rect.size();
 		}
 		if (self.owner) |owner| {
 			const zoom: Float = @floatFromInt(self.zoom);
-			const size: FVec2 = @floatFromInt(UVec2{ self.pixwidth, self.pixheight });
+			const size: FVec2 = @floatFromInt(@as(UVec2, self.pixsize));
 			const p1: FVec2 = @floatFromInt(self.obj.pos(owner));
 			const p2 = p1 + FVec2{ zoom, zoom } * size;
 

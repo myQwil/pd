@@ -608,10 +608,8 @@ pub const Object = extern struct {
 	outlets: ?*Outlet = null,
 	/// linked list of inlets
 	inlets: ?*Inlet = null,
-	/// x location (within the toplevel)
-	xpix: c_short = 0,
-	/// y location (within the toplevel)
-	ypix: c_short = 0,
+	/// location (within the toplevel)
+	pix: [2]c_short = .{ 0, 0 },
 	/// requested width in chars, 0 if auto
 	width: c_ushort = 0,
 	type: Type = .text,
@@ -657,26 +655,22 @@ pub const Object = extern struct {
 	pub fn pos(self: *const Object, glist: *const GList) @Vector(2, c_int) {
 		const FVec2 = @Vector(2, Float);
 		const IVec2 = @Vector(2, c_int);
-		const pix: IVec2 = @intCast(@Vector(2, c_short){ self.xpix, self.ypix });
+		const pix: IVec2 = @intCast(@as(@Vector(2, c_short), self.pix));
 
 		if (glist.flags.havewindow or !glist.flags.isgraph) {
 			const zoom: c_int = @intCast(glist.zoom);
 			return pix * IVec2{ zoom, zoom };
 		}
-		const rect: Rect(Float) = .{
-			.p1 = .{ glist.x1, glist.y1 },
-			.p2 = .{ glist.x2, glist.y2 },
-		};
+		const rect: Rect(Float) = .{ .p1 = glist.p1, .p2 = glist.p2 };
 		if (glist.flags.goprect) {
 			const zoom: c_int = @intCast(glist.zoom);
-			const margin: IVec2 = .{ glist.xmargin, glist.ymargin };
 			const p1: IVec2 = @intFromFloat(glist.toPixels(rect.p1));
-			return p1 + IVec2{ zoom, zoom } * (pix - margin);
+			return p1 + IVec2{ zoom, zoom } * (pix - glist.margin);
 		}
 		const fpix: FVec2 = @floatFromInt(pix);
 		const screen_size: FVec2 = @floatFromInt((Rect(c_int){
-			.p1 = .{ glist.screenx1, glist.screeny1 },
-			.p2 = .{ glist.screenx2, glist.screeny2 },
+			.p1 = glist.screen1,
+			.p2 = glist.screen2,
 		}).size());
 		return @intFromFloat(glist.toPixels(rect.p1 + rect.size() * fpix / screen_size));
 	}
