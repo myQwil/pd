@@ -359,8 +359,8 @@ pub const Clock = opaque {
 	pub const unset = clock_unset;
 	extern fn clock_unset(*Clock) void;
 
-	pub fn setUnit(self: *Clock, timeunit: f64, in_samples: bool) void {
-		clock_setunit(self, timeunit, @intFromBool(in_samples));
+	pub fn setUnit(self: *Clock, unit: TimeUnit) void {
+		clock_setunit(self, unit.amount, @intFromBool(unit.in_samples));
 	}
 	extern fn clock_setunit(*Clock, f64, c_uint) void;
 
@@ -368,6 +368,35 @@ pub const Clock = opaque {
 		return clock_new(owner, func) orelse error.OutOfMemory;
 	}
 	extern fn clock_new(*anyopaque, *const Method) ?*Clock;
+};
+
+pub const TimeUnit = extern struct {
+	amount: f64 = 1,
+	in_samples: bool = false,
+
+	pub fn init(amount: Float, unit: *Symbol) error{UnknownTimeUnit}!TimeUnit {
+		const name: [:0]const u8 = std.mem.sliceTo(unit.name, 0);
+		const is_per = std.mem.startsWith(u8, name, "per");
+		const s = if (is_per) name[3..] else name;
+
+		const in_samples = std.mem.startsWith(u8, s, "sam");
+		const f: Float = if (in_samples or std.mem.startsWith(u8, s, "ms")) 1
+		else if (std.mem.startsWith(u8, s, "sec")) 1000
+		else if (std.mem.startsWith(u8, s, "min")) 60000
+		else return error.UnknownTimeUnit;
+
+		const amt = if (amount <= 0) 1 else amount;
+		return .{
+			.amount = if (is_per) f / amt else f * amt,
+			.in_samples = in_samples,
+		};
+	}
+
+	pub fn timeSince(self: TimeUnit, prevsystime: f64) f64 {
+		return clock_gettimesincewithunits(prevsystime,
+			self.amount, @intFromBool(self.in_samples));
+	}
+	extern fn clock_gettimesincewithunits(f64, f64, c_uint) f64;
 };
 
 pub const time = clock_getlogicaltime;
@@ -378,11 +407,6 @@ extern fn clock_gettimesince(prev_sys_time: f64) f64;
 
 pub const sysTimeAfter = clock_getsystimeafter;
 extern fn clock_getsystimeafter(delay_time: f64) f64;
-
-pub fn timeSinceWithUnits(prevsystime: f64, units: f64, in_samples: bool) f64 {
-	return clock_gettimesincewithunits(prevsystime, units, @intFromBool(in_samples));
-}
-extern fn clock_gettimesincewithunits(f64, f64, c_uint) f64;
 
 
 // ------------------------------------ Dsp ------------------------------------
