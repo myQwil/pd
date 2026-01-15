@@ -59,7 +59,7 @@ pub fn library(
 	mod.addIncludePath(upstream.path("src/common"));
 
 	const mem = b.allocator;
-	var files: std.ArrayList([]const u8) = try .initCapacity(mem, 0);
+	var files: std.ArrayList([]const u8) = .{};
 	defer files.deinit(mem);
 
 	try files.appendSlice(mem, &src.common);

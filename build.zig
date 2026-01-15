@@ -185,7 +185,7 @@ fn baseFiles(
 	mem: std.mem.Allocator,
 	opt: Options,
 ) !StringList {
-	var files: StringList = try .initCapacity(mem, 0);
+	var files: StringList = .{};
 	try files.appendSlice(mem, &src.core);
 	try files.appendSlice(mem, if (opt.fftw) &src.fftw else &src.fftsg);
 	return files;
@@ -196,7 +196,7 @@ fn baseFlags(
 	os: std.Target.Os.Tag,
 	optimize: std.builtin.OptimizeMode,
 ) !StringList {
-	var flags: StringList = try .initCapacity(mem, 0);
+	var flags: StringList = .{};
 	try flags.append(mem, "-fno-sanitize=undefined");
 	if (optimize != .Debug) {
 		try flags.appendSlice(mem, &.{
