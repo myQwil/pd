@@ -1,20 +1,20 @@
 const m = @import("pd.zig");
 
 const Atom = m.Atom;
-const Float = m.Float;
-const Rect = m.Rect;
-const Symbol = m.Symbol;
-const Word = m.Word;
-
-const GPointer = m.GPointer;
-const GStub = m.GStub;
-const Object = m.Object;
 const BinBuf = m.BinBuf;
 const Clock = m.Clock;
+const Float = m.Float;
+const GPointer = m.GPointer;
+const GStub = m.GStub;
 const Inlet = m.Inlet;
+const Object = m.Object;
+const OutConnect = m.OutConnect;
 const Outlet = m.Outlet;
-const Scalar = m.Scalar;
 const Pd = m.Pd;
+const Rect = m.Rect;
+const Scalar = m.Scalar;
+const Symbol = m.Symbol;
+const Word = m.Word;
 
 pub const io_width = 7;
 pub const i_height = 3;
@@ -74,7 +74,6 @@ pub const RText = opaque {
 };
 
 const GuiConnect = opaque {};
-const OutConnect = opaque {};
 
 pub const UpdateHeader = extern struct {
 	next: ?*UpdateHeader,
@@ -496,10 +495,6 @@ pub const GList = extern struct {
 	pub const deleteLinesFor = canvas_deletelinesfor;
 	extern fn canvas_deletelinesfor(*GList, *Object) void;
 
-	/// Kill all lines for one inlet or outlet.
-	pub const deleteLinesForIo = canvas_deletelinesforio;
-	extern fn canvas_deletelinesforio(*GList, *Object, ?*Inlet, ?*Outlet) void;
-
 	pub const makeFilename = canvas_makefilename;
 	extern fn canvas_makefilename(
 		*const GList, file: [*:0]const u8, result: [*:0]u8, resultsize: c_int) void;
@@ -671,6 +666,42 @@ pub const GObj = extern struct {
 		return (gobj_shouldvis(self, glist) != 0);
 	}
 	extern fn gobj_shouldvis(*GObj, *GList) c_uint;
+};
+
+
+// ------------------------------- LineTraverser -------------------------------
+// -----------------------------------------------------------------------------
+pub const LineTraverser = extern struct {
+	x: *GList,
+	ob: *Object,
+	nout: c_int,
+	outno: c_int,
+	ob2: *Object,
+	outlet: ?*Outlet,
+	inlet: ?*Inlet,
+	nin: c_int,
+	inno: c_int,
+	p11: [2]c_int,
+	p12: [2]c_int,
+	p21: [2]c_int,
+	p22: [2]c_int,
+	l1: [2]c_int,
+	l2: [2]c_int,
+	nextoc: ?*OutConnect,
+	nextoutno: c_int,
+
+	pub fn init(x: *GList) LineTraverser {
+		var t: LineTraverser = undefined;
+		linetraverser_start(&t, x);
+		return t;
+	}
+	extern fn linetraverser_start(t: *LineTraverser, x: *GList) void;
+
+	pub const next = linetraverser_next;
+	extern fn linetraverser_next(t: *LineTraverser) ?*OutConnect;
+
+	pub const skipObject = linetraverser_skipobject;
+	extern fn linetraverser_skipobject(t: *LineTraverser) void;
 };
 
 

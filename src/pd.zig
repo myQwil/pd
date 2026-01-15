@@ -705,6 +705,19 @@ pub const Object = extern struct {
 	pub const inletSymbol = Inlet.initSymbol;
 	pub const inletSignal = Inlet.initSignal;
 	pub const inletPointer = Inlet.initPointer;
+
+	/// connect an outlet of one object to an inlet of another.  The receiving
+   /// "pd" is usually a patchable object, but this may be used to add a
+   /// non-patchable pd to an outlet by specifying the 0th inlet.
+	pub const connect = obj_connect;
+	extern fn obj_connect(
+		source: *Object, outno: c_int, sink: *Object, inno: c_int,
+	) ?*OutConnect;
+
+	pub const disconnect = obj_disconnect;
+	extern fn obj_disconnect(
+		source: *Object, outno: c_int, sink: *Object, inno: c_int,
+	) void;
 };
 
 
@@ -1430,6 +1443,8 @@ pub fn this() *const Instance {
 	// TODO: fix this to be multi-instance compatible
 	return &pd_maininstance;
 }
+
+pub const OutConnect = opaque {};
 
 pub const max_string = 1000;
 pub const max_arg = 5;
