@@ -1,6 +1,8 @@
 # Zig Folders
 .zig-cache/
 zig-out/
+/build/
+/build-*/
 
 # IDE Config
 .vscode/
@@ -8,13 +10,9 @@ zig-out/
 
 # Upstream Pd folder
 upstream/
-pure-data/
 
 # Manifest file
 install_manifest.txt
-
-# Staging folder
-install/
 
 # Generated C-translate file
 cdef.zig

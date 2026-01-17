@@ -4,16 +4,16 @@ set -euo pipefail
 PREFIX="${PREFIX:-/usr/local}"
 
 # Staging
-DESTDIR=install zig build -p "$PREFIX" "$@"
+DESTDIR=build zig build -p "$PREFIX" "$@"
 
 # Generate manifest (in case you want to uninstall later)
-find install -type f -printf '/%P\n' > install_manifest.txt
+find build -type f -printf '/%P\n' > install_manifest.txt
 
 # Copy to prefix path. Invoke sudo if current user doesn't own prefix.
 my_uid=$(id -u)
 check_dir=$( [[ -d "$PREFIX" ]] && echo "$PREFIX" || dirname "$PREFIX" )
 if [[ $(stat -c '%u' "$check_dir") -ne $my_uid ]]; then
-    sudo rsync -a --chown=root:root "install/$PREFIX/" "$PREFIX"
+    sudo rsync -a --chown=root:root "build/$PREFIX/" "$PREFIX"
 else
-    rsync -a "install/$PREFIX/" "$PREFIX"
+    rsync -a "build/$PREFIX/" "$PREFIX"
 fi
