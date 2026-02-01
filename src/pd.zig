@@ -181,9 +181,7 @@ pub const BinBuf = opaque {
 	pub const Options = packed struct(c_uint) {
 		skip_shebang: bool = false,
 		map_cr: bool = false,
-		_unused: @Type(.{.int = .{
-			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 2,
-		}}) = 0,
+		_unused: std.meta.Int(.unsigned, @bitSizeOf(c_uint) - 2) = 0,
 	};
 
 	pub const deinit = binbuf_free;
@@ -1280,10 +1278,10 @@ pub fn fft(buf: []Float, inverse: bool) void {
 }
 extern fn pd_fft([*]Float, c_uint, c_uint) void;
 
-const ushift = @Type(.{ .int = .{
-	.signedness = .unsigned,
-	.bits = @bitSizeOf(usize) - 1 - @clz(@as(usize, @bitSizeOf(usize))),
-}});
+const ushift = std.meta.Int(
+	.unsigned,
+	@bitSizeOf(usize) - 1 - @clz(@as(usize, @bitSizeOf(usize))),
+);
 pub fn ulog2(n: usize) ?ushift {
 	return if (n == 0) null else @intCast(@bitSizeOf(usize) - 1 - @clz(n));
 }
@@ -1374,7 +1372,7 @@ const bos_mask = 1 << (float_bits - 3);
 
 pub const BigOrSmall = extern union {
 	f: Float,
-	ui: @Type(.{ .int = .{ .signedness = .unsigned, .bits = float_bits } }),
+	ui: std.meta.Int(.unsigned, float_bits),
 };
 
 pub fn badFloat(f: Float) bool {
