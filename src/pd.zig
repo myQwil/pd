@@ -147,19 +147,14 @@ fn paramsFromTypes(comptime types: []const type) [types.len]Fn.Param {
 }
 
 pub fn NewFn(T: type, comptime args: []const Atom.Type) type {
-	return @Type(.{ .@"fn" = Fn{
-		.calling_convention = .c,
-		.is_generic = false,
-		.is_var_args = false,
-		.return_type = ?*T,
-		.params = if (args.len == 0)
-			&.{}
-		else &paramsFromTypes(
-			if (args[0] == .gimme)
-				&.{ *Symbol, c_uint, [*]Atom }
-			else &typesFromAtoms(args)
-		),
-	}});
+	const types: []const type = if (args.len == 0)
+		&.{}
+	else if (args[0] == .gimme)
+		&.{ *Symbol, c_uint, [*]Atom }
+	else
+		&typesFromAtoms(args);
+
+	return @Fn(types, &@splat(.{}), ?*T, .{ .@"callconv" = .c });
 }
 
 pub fn addCreator(

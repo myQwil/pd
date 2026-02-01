@@ -39,28 +39,29 @@ pub fn create(
 
 fn make(step: *Step, _: Step.MakeOptions) !void {
 	const b = step.owner;
+	const io = b.graph.io;
 	const link: *InstallLink = @fieldParentPtr("step", step);
 
 	const dest = b.getInstallPath(link.dir, link.dest_rel_path);
 	const head = std.fs.path.dirname(dest).?;
 
 	// dest folder must already exist before attempting to put symlinks in it
-	var dir: std.fs.Dir = blk: { if (std.fs.path.isAbsolute(head)) {
-		var root = try std.fs.openDirAbsolute("/", .{});
-		defer root.close();
-		root.access(head[1..], .{}) catch root.makePath(head[1..]) catch {};
-		break :blk try std.fs.openDirAbsolute(head, .{});
+	var dir: std.Io.Dir = blk: { if (std.fs.path.isAbsolute(head)) {
+		var root = try std.Io.Dir.openDirAbsolute(io, "/", .{});
+		defer root.close(io);
+		root.access(io, head[1..], .{}) catch root.createDirPath(io, head[1..]) catch {};
+		break :blk try std.Io.Dir.openDirAbsolute(io, head, .{});
 	} else {
-		const cwd = std.fs.cwd();
-		cwd.access(head, .{}) catch cwd.makePath(head) catch {};
-		break :blk try cwd.openDir(head, .{});
+		const cwd = std.Io.Dir.cwd();
+		cwd.access(io, head, .{}) catch cwd.createDirPath(io, head) catch {};
+		break :blk try cwd.openDir(io, head, .{});
 	}};
-	defer dir.close();
+	defer dir.close(io);
 
 	const target_path = blk: {
 		const p = link.source.getPath3(b, step);
 		const full_src_path = b.pathResolve(&.{ p.root_dir.path orelse ".", p.sub_path });
-		if (std.fs.path.relative(b.allocator, head, full_src_path)) |rel| {
+		if (std.Io.Dir.path.relative(b.allocator, ".", null, head, full_src_path)) |rel| {
 			b.allocator.free(full_src_path);
 			break :blk rel;
 		} else |_| {
@@ -69,7 +70,7 @@ fn make(step: *Step, _: Step.MakeOptions) !void {
 	};
 	defer b.allocator.free(target_path);
 
-	dir.symLink(target_path, dest[head.len+1..], .{}) catch |err| switch (err) {
+	dir.symLink(io, target_path, dest[head.len+1..], .{}) catch |err| switch (err) {
 		error.PathAlreadyExists => {},
 		else => return step.fail("unable to install symlink '{s}' -> '{s}': {s}",
 			.{ link.dest_rel_path, target_path, @errorName(err) }),

@@ -2,7 +2,7 @@
 	.name = .pd,
 	.version = "0.56.2",
 	.fingerprint = 0x2439ce48ed342d0c,
-	.minimum_zig_version = "0.15.1",
+	.minimum_zig_version = "0.16.0-dev.2368+380ea6fb5",
 	.dependencies = .{
 		.pd = .{
 			.url = "git+https://github.com/pure-data/pure-data.git?ref=master#b1ff370c87b579f80130a9cafbf27cd890e90882",

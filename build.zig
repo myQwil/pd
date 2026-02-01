@@ -25,10 +25,12 @@ fn installFiles(
 ) !void {
 	// Using `getPath3` outside of the make phase. Normally, this would be bad,
 	// but it's from a dependency, so the files are there at graph construction time.
-	var dir = try dep.path(src_path).getPath3(b, null).openDir("", .{ .iterate = true });
-	defer dir.close();
+	const io = b.graph.io;
+	var dir = try dep.path(src_path).getPath3(b, null)
+		.openDir(io, "", .{ .iterate = true });
+	defer dir.close(io);
 	var iter = dir.iterate();
-	while (try iter.next()) |f| {
+	while (try iter.next(io)) |f| {
 		if (f.kind != .file or !endsWith(f.name, exts)) {
 			continue;
 		}
@@ -158,7 +160,7 @@ pub fn build(b: *Build) !void {
 			.name = "pd-watchdog",
 			.root_module = b.createModule(mod_args),
 		});
-		watchdog.addCSourceFiles(.{
+		watchdog.root_module.addCSourceFiles(.{
 			.root = root,
 			.files = &src.watchdog,
 			.flags = flags.items,
@@ -175,7 +177,7 @@ pub fn build(b: *Build) !void {
 			.name = "pdsend",
 			.root_module = b.createModule(mod_args),
 		});
-		send.addCSourceFiles(.{
+		send.root_module.addCSourceFiles(.{
 			.root = root,
 			.files = &src.send,
 			.flags = flags.items
@@ -186,7 +188,7 @@ pub fn build(b: *Build) !void {
 			.name = "pdreceive",
 			.root_module = b.createModule(mod_args),
 		});
-		receive.addCSourceFiles(.{
+		receive.root_module.addCSourceFiles(.{
 			.root = root,
 			.files = &src.receive,
 			.flags = flags.items
@@ -210,13 +212,14 @@ pub fn build(b: *Build) !void {
 		});
 
 		const tail = b.addSystemCommand(&.{ "tail", "-n", "+2" });
-		tail.setStdIn(.{ .lazy_path = pd_gui.getOutput() });
+		tail.setStdIn(.{ .lazy_path = pd_gui.getOutputFile() });
 
 		const chmod = b.addSystemCommand(&.{ "chmod", "+x" });
-		chmod.addFileArg(tail.captureStdOut());
+		const out = tail.captureStdOut(.{});
+		chmod.addFileArg(out);
 		chmod.step.dependOn(&tail.step);
 
-		const install_pdgui = b.addInstallBinFile(tail.captureStdOut(), "pd-gui");
+		const install_pdgui = b.addInstallBinFile(out, "pd-gui");
 		install_pdgui.step.dependOn(&chmod.step);
 		install_exe.step.dependOn(&install_pdgui.step);
 	}
