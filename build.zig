@@ -43,13 +43,14 @@ fn installFiles(
 pub fn extension(
 	b: *Build,
 	target: Build.ResolvedTarget,
+	float_size: u8,
 ) []const u8 {
 	const os = target.result.os.tag;
 	const arch = target.result.cpu.arch;
-	return b.fmt(".{s}_{s}", .{
-		if      (os.isDarwin())  "d"
-		else if (os == .windows) "m"
-		else                     "l"
+	return b.fmt(".{s}-{s}-{d}{s}", .{
+		if      (os.isDarwin())  "darwin"
+		else if (os == .windows) "windows"
+		else                     "linux"
 		,
 		if      (arch == .x86_64)  "amd64"
 		else if (arch == .x86)     "i386"
@@ -57,6 +58,9 @@ pub fn extension(
 		else if (arch.isAARCH64()) "arm64"
 		else if (arch.isPowerPC()) "ppc"
 		else                       @tagName(arch)
+		,
+		float_size,
+		target.result.dynamicLibSuffix(),
 	});
 }
 
@@ -227,7 +231,7 @@ pub fn build(b: *Build) !void {
 	//---------------------------------------------------------------------------
 	// Extra
 	{
-		const ext = extension(b, target);
+		const ext = extension(b, target, opt.float_size);
 		for (&src.extra) |x| {
 			const mod = b.createModule(mod_args);
 			mod.addCMacro("PD", "1");
