@@ -1,4 +1,3 @@
-const std = @import("std");
 const m = @import("pd.zig");
 
 const Atom = m.Atom;
@@ -85,7 +84,7 @@ pub const UpdateHeader = extern struct {
 		array: bool,
 		/// true if we're queued
 		queued: bool,
-		_unused: std.meta.Int(.unsigned, @bitSizeOf(c_uint) - 2),
+		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 2),
 	};
 };
 
@@ -143,7 +142,7 @@ pub const Editor = extern struct {
 		textdirty: bool,
 		/// one if a line is selected
 		selectedline: bool,
-		_unused: std.meta.Int(.unsigned, @bitSizeOf(c_uint) - 6),
+		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 6),
 	};
 
 	pub const OnMotion = enum(u3) {
@@ -261,7 +260,7 @@ pub const GList = extern struct {
 		private: bool,
 		/// exists as part of a clone object
 		isclone: bool,
-		_unused: std.meta.Int(.unsigned, @bitSizeOf(c_uint) - 12),
+		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 12),
 	};
 
 	pub const MotionFn = fn (*anyopaque, Float, Float, Float) callconv(.c) void;

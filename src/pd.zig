@@ -176,7 +176,7 @@ pub const BinBuf = opaque {
 	pub const Options = packed struct(c_uint) {
 		skip_shebang: bool = false,
 		map_cr: bool = false,
-		_unused: std.meta.Int(.unsigned, @bitSizeOf(c_uint) - 2) = 0,
+		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 2) = 0,
 	};
 
 	pub const deinit = binbuf_free;
@@ -1273,7 +1273,7 @@ pub fn fft(buf: []Float, inverse: bool) void {
 }
 extern fn pd_fft([*]Float, c_uint, c_uint) void;
 
-const ushift = std.meta.Int(
+const ushift = @Int(
 	.unsigned,
 	@bitSizeOf(usize) - 1 - @clz(@as(usize, @bitSizeOf(usize))),
 );
@@ -1367,7 +1367,7 @@ const bos_mask = 1 << (float_bits - 3);
 
 pub const BigOrSmall = extern union {
 	f: Float,
-	ui: std.meta.Int(.unsigned, float_bits),
+	ui: @Int(.unsigned, float_bits),
 };
 
 pub fn badFloat(f: Float) bool {

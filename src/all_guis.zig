@@ -1,4 +1,3 @@
-const std = @import("std");
 const m = @import("pd.zig");
 const cnv = @import("canvas.zig");
 
@@ -82,7 +81,7 @@ pub const FontStyleFlags = packed struct(c_uint) {
 	thick: bool,
 	lin0_log1: bool,
 	steady: bool,
-	_unused: std.meta.Int(.unsigned, @bitSizeOf(c_uint) - 31),
+	_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 31),
 
 	pub const Style = enum(u6) {
 		/// usually dejavu, or menlo on MacOS
@@ -107,7 +106,7 @@ pub const InitSymArgs = packed struct(c_uint) {
 	scale: bool,
 	flashed: bool,
 	locked: bool,
-	_unused: std.meta.Int(.unsigned, @bitSizeOf(c_uint) - 28),
+	_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 28),
 
 	pub const set = iem_inttosymargs;
 	extern fn iem_inttosymargs(*InitSymArgs, c_uint) void;
