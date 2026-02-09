@@ -608,7 +608,7 @@ const mem_vtable = Allocator.VTable{
 	.free = free,
 };
 
-pub const mem = Allocator{
+pub const gpa = Allocator{
 	.ptr = undefined,
 	.vtable = &mem_vtable,
 };
