@@ -589,12 +589,16 @@ fn alloc(_: *anyopaque, len: usize, _: Alignment, _: usize) ?[*]u8 {
 extern fn getbytes(usize) ?*anyopaque;
 
 fn resize(_: *anyopaque, buf: []u8, _: Alignment, new_len: usize, _: usize) bool {
+	std.debug.assert(new_len > 0);
 	return (new_len <= buf.len);
 }
 
-fn remap(_: *anyopaque, buf: []u8, _: Alignment, new_len: usize, _: usize) ?[*]u8 {
-	return if (new_len <= buf.len) buf.ptr else null;
+fn remap(c: *anyopaque, buf: []u8, a: Alignment, new_len: usize, r: usize) ?[*]u8 {
+	return if (resize(c, buf, a, new_len, r))
+		buf.ptr
+	else resizebytes(buf.ptr, buf.len, new_len);
 }
+extern fn resizebytes(x: *anyopaque, oldsize: usize, newsize: usize) ?[*]u8;
 
 fn free(_: *anyopaque, buf: []u8, _: Alignment, _: usize) void {
 	freebytes(buf.ptr, buf.len);
