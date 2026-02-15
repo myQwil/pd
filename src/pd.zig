@@ -1443,7 +1443,10 @@ pub fn this() *const Instance {
 
 pub const OutConnect = opaque {};
 
-pub const max_string = 1000;
+/// 1000, minus the sentinel,
+/// minus another sentinel in case we forgot about the first one.
+pub const max_string = 1000 - 2;
+
 pub const max_arg = 5;
 pub const max_logsig = 32;
 pub const max_sigsize = 1 << max_logsig;
