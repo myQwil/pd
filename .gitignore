@@ -1,6 +1,7 @@
 # Zig Folders
 .zig-cache/
 zig-out/
+zig-pkg/
 /build/
 /build-*/
 
