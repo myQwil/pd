@@ -62,11 +62,10 @@ pub const Atom = extern struct {
 		gimme,
 		cant,
 
-		const Tuple = std.meta.Tuple;
 		pub fn tuple(
 			comptime args: []const Type,
-		) Tuple(&[_]type {c_uint} ** (args.len + 1)) {
-			var tpl: Tuple(&[_]type {c_uint} ** (args.len + 1)) = undefined;
+		) @Tuple(&[_]type {c_uint} ** (args.len + 1)) {
+			var tpl: @Tuple(&[_]type {c_uint} ** (args.len + 1)) = undefined;
 			inline for (0..args.len) |i| {
 				tpl[i] = @intFromEnum(args[i]);
 			}
