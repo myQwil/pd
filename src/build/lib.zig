@@ -31,10 +31,10 @@ pub fn addLibrary(b: *Build, options: LibraryOptions) !*Compile {
 
 	var files: StringList = .{};
 	defer files.deinit(mem);
-	try files.appendSlice(mem, &src.core);
-	try files.appendSlice(mem, if (opt.fftw) &src.fftw else &src.fftsg);
-	try files.appendSlice(mem, &src.lib);
-	try files.appendSlice(mem, &src.dummy);
+	try files.appendSlice(mem, src.core);
+	try files.appendSlice(mem, if (opt.fftw) src.fftw else src.fftsg);
+	try files.appendSlice(mem, src.lib);
+	try files.appendSlice(mem, src.dummy);
 
 	const mod = b.createModule(.{
 		.target = options.target,
@@ -95,11 +95,11 @@ pub fn addLibrary(b: *Build, options: LibraryOptions) !*Compile {
 	}
 
 	if (opt.lib.extra) {
-		try files.appendSlice(mem, &src.extra);
+		try files.appendSlice(mem, src.extra);
 		mod.addCMacro("LIBPD_EXTRA", "1");
 	}
 	if (opt.lib.utils) {
-		try files.appendSlice(mem, &src.util);
+		try files.appendSlice(mem, src.util);
 	}
 
 	if (opt.lib.multi) {

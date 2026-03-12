@@ -31,10 +31,10 @@ pub fn addExecutable(b: *Build, options: ExecutableOptions) !*Compile {
 
 	var files: StringList = .{};
 	defer files.deinit(mem);
-	try files.appendSlice(mem, &src.core);
-	try files.appendSlice(mem, if (opt.fftw) &src.fftw else &src.fftsg);
-	try files.appendSlice(mem, &src.standalone);
-	try files.appendSlice(mem, &src.entry);
+	try files.appendSlice(mem, src.core);
+	try files.appendSlice(mem, if (opt.fftw) src.fftw else src.fftsg);
+	try files.appendSlice(mem, src.standalone);
+	try files.appendSlice(mem, src.entry);
 
 	const mod = b.createModule(.{
 		.target = options.target,
@@ -90,24 +90,24 @@ pub fn addExecutable(b: *Build, options: ExecutableOptions) !*Compile {
 
 	var have_audio_api: bool = false;
 	if (opt.alsa) {
-		try files.appendSlice(mem, &src.alsa);
+		try files.appendSlice(mem, src.alsa);
 		mod.addCMacro("USEAPI_ALSA", "1");
 		mod.linkSystemLibrary("asound", .{});
 		have_audio_api = true;
 	}
 	if (opt.oss) {
-		try files.appendSlice(mem, &src.oss);
+		try files.appendSlice(mem, src.oss);
 		mod.addCMacro("USEAPI_OSS", "1");
 		have_audio_api = true;
 	}
 	if (opt.jack) {
-		try files.appendSlice(mem, &src.jack);
+		try files.appendSlice(mem, src.jack);
 		mod.addCMacro("USEAPI_JACK", "1");
 		mod.linkSystemLibrary("jack", .{});
 		have_audio_api = true;
 	}
 	if (opt.portaudio.enabled) {
-		try files.appendSlice(mem, &src.portaudio);
+		try files.appendSlice(mem, src.portaudio);
 		mod.addCMacro("USEAPI_PORTAUDIO", "1");
 		if (opt.portaudio.local) {
 			const pa = @import("portaudio.zig");
@@ -120,9 +120,9 @@ pub fn addExecutable(b: *Build, options: ExecutableOptions) !*Compile {
 
 	if (!have_audio_api) {
 		mod.addCMacro("USEAPI_DUMMY", "1");
-		try files.appendSlice(mem, &src.dummy);
+		try files.appendSlice(mem, src.dummy);
 	} else if (opt.jack or opt.portaudio.enabled) {
-		try files.appendSlice(mem, &src.paring);
+		try files.appendSlice(mem, src.paring);
 	}
 
 	mod.addCSourceFiles(.{

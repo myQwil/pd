@@ -166,7 +166,7 @@ pub fn build(b: *Build) !void {
 		});
 		watchdog.root_module.addCSourceFiles(.{
 			.root = root,
-			.files = &src.watchdog,
+			.files = src.watchdog,
 			.flags = flags.items,
 		});
 		install_exe.step.dependOn(&b.addInstallArtifact(watchdog, .{
@@ -183,7 +183,7 @@ pub fn build(b: *Build) !void {
 		});
 		send.root_module.addCSourceFiles(.{
 			.root = root,
-			.files = &src.send,
+			.files = src.send,
 			.flags = flags.items
 		});
 		install_exe.step.dependOn(&b.addInstallArtifact(send, .{}).step);
@@ -194,7 +194,7 @@ pub fn build(b: *Build) !void {
 		});
 		receive.root_module.addCSourceFiles(.{
 			.root = root,
-			.files = &src.receive,
+			.files = src.receive,
 			.flags = flags.items
 		});
 		install_exe.step.dependOn(&b.addInstallArtifact(receive, .{}).step);
@@ -232,7 +232,7 @@ pub fn build(b: *Build) !void {
 	// Extra
 	{
 		const ext = extension(b, target, opt.float_size);
-		for (&src.extra) |x| {
+		for (src.extra) |x| {
 			const mod = b.createModule(mod_args);
 			mod.addCMacro("PD", "1");
 			mod.addIncludePath(upstream.path("src"));
@@ -261,7 +261,7 @@ pub fn build(b: *Build) !void {
 			&.{ ".pd", ".txt" });
 
 		// Zig extern examples
-		for (&src.zig_extra) |x| {
+		for (src.zig_extra) |x| {
 			const path = b.fmt("extra/{s}/{s}", .{ x, x });
 			const dll = b.addLibrary(.{
 				.name = x,

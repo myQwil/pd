@@ -1,17 +1,17 @@
-pub const lib = [_][]const u8{
+pub const lib = &[_][]const u8{
 	"src/z_libpd.c",
 	"src/z_hooks.c",
 	"src/x_libpdreceive.c",
 	"src/s_libpdmidi.c",
 };
 
-pub const util = [_][]const u8{
+pub const util = &[_][]const u8{
 	"src/z_print_util.c",
 	"src/z_queued.c",
 	"src/z_ringbuffer.c"
 };
 
-pub const extra = [_][]const u8{
+pub const extra = &[_][]const u8{
 	"extra/bob~/bob~.c",
 	"extra/bonk~/bonk~.c",
 	"extra/choice/choice.c",
@@ -25,23 +25,23 @@ pub const extra = [_][]const u8{
 	"extra/stdout/stdout.c",
 };
 
-pub const zig_extra = [_][]const u8{
+pub const zig_extra = &[_][]const u8{
 	"sesom",
 };
 
-pub const fftw = [_][]const u8{
+pub const fftw = &[_][]const u8{
 	"src/d_fft_fftw.c",
 };
 
-pub const fftsg = [_][]const u8{
+pub const fftsg = &[_][]const u8{
 	"src/d_fft_fftsg.c",
 };
 
-pub const entry = [_][]const u8{
+pub const entry = &[_][]const u8{
 	"src/s_entry.c",
 };
 
-pub const core = [_][]const u8{
+pub const core = &[_][]const u8{
 	"src/d_arithmetic.c",
 	"src/d_array.c",
 	"src/d_ctl.c",
@@ -120,48 +120,48 @@ pub const core = [_][]const u8{
 	"src/x_vexp_if.c",
 };
 
-pub const standalone = [_][]const u8{
+pub const standalone = &[_][]const u8{
 	"src/s_file.c",
 	"src/s_midi.c",
 };
 
-pub const alsa = [_][]const u8{
+pub const alsa = &[_][]const u8{
 	"src/s_audio_alsa.c",
 	"src/s_audio_alsamm.c",
 	"src/s_midi_alsa.c",
 };
 
-pub const jack = [_][]const u8{
+pub const jack = &[_][]const u8{
 	"src/s_audio_jack.c",
 };
 
-pub const oss = [_][]const u8{
+pub const oss = &[_][]const u8{
 	"src/s_audio_oss.c",
 	"src/s_midi_oss.c",
 };
 
-pub const portaudio = [_][]const u8{
+pub const portaudio = &[_][]const u8{
 	"src/s_audio_pa.c",
 };
 
-pub const dummy = [_][]const u8{
+pub const dummy = &[_][]const u8{
 	"src/s_audio_dummy.c",
 };
 
-pub const paring = [_][]const u8{
+pub const paring = &[_][]const u8{
 	"src/s_audio_paring.c",
 };
 
-pub const watchdog = [_][]const u8{
+pub const watchdog = &[_][]const u8{
 	"src/s_watchdog.c",
 };
 
-pub const send = [_][]const u8{
+pub const send = &[_][]const u8{
 	"src/u_pdsend.c",
 	"src/s_net.c",
 };
 
-pub const receive = [_][]const u8{
+pub const receive = &[_][]const u8{
 	"src/u_pdreceive.c",
 	"src/s_net.c",
 };
