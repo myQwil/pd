@@ -17,7 +17,7 @@ pub fn addExecutable(b: *Build, options: ExecutableOptions) !*Compile {
 	const opt = options.opt;
 	const mem = b.allocator;
 
-	var flags: StringList = .{};
+	var flags: StringList = .empty;
 	defer flags.deinit(mem);
 	try flags.append(mem, "-fno-sanitize=undefined");
 	if (options.optimize != .Debug) {
@@ -29,7 +29,7 @@ pub fn addExecutable(b: *Build, options: ExecutableOptions) !*Compile {
 		});
 	}
 
-	var files: StringList = .{};
+	var files: StringList = .empty;
 	defer files.deinit(mem);
 	try files.appendSlice(mem, src.core);
 	try files.appendSlice(mem, if (opt.fftw) src.fftw else src.fftsg);

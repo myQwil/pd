@@ -141,7 +141,7 @@ pub fn build(b: *Build) !void {
 		.link_libc = true,
 	};
 
-	var flags: StringList = .{};
+	var flags: StringList = .empty;
 	defer flags.deinit(mem);
 	if (optimize != .Debug) {
 		try flags.appendSlice(mem, &.{
