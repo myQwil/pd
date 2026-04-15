@@ -1,5 +1,5 @@
 const std = @import("std");
-const opt = @import("options");
+pub const opt = @import("options");
 pub const imp = @import("imp.zig");
 pub const cnv = @import("canvas.zig");
 pub const iem = @import("all_guis.zig");
