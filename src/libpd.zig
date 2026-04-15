@@ -80,9 +80,9 @@ extern fn libpd_add_to_search_path([*:0]const u8) void;
 
 pub const Patch = struct {
 	/// Patch handle pointer.
-	handle: *anyopaque,
+	handle: ?*anyopaque = null,
 	/// Unique $0 patch ID
-	dollar_zero: c_uint,
+	dollar_zero: c_uint = 0,
 
 	/// Open a patch by filename and parent dir path.
 	pub fn fromFile(name: [*:0]const u8, dir: [*:0]const u8) error{OpenFile}!Patch {
@@ -96,7 +96,9 @@ pub const Patch = struct {
 
 	/// Close a patch by patch handle pointer.
 	pub fn close(self: *const Patch) void {
-		libpd_closefile(self.handle);
+		if (self.handle) |h| {
+			libpd_closefile(h);
+		}
 	}
 	extern fn libpd_closefile(*anyopaque) void;
 };
