@@ -5,27 +5,6 @@ const Instance = pd.Instance;
 const std = @import("std");
 const testing = std.testing;
 
-const Error = error {
-	AlreadyInitialized,
-	RingBuffer,
-	InitAudio,
-	OpenFile,
-	ProcessFloat,
-	ProcessShort,
-	ProcessDouble,
-	ProcessRawFloat,
-	ProcessRawShort,
-	ProcessRawDouble,
-	ArrayNotFound,
-	ArrayOutOfBounds,
-	ReceiverNotFound,
-	MessageTooLong,
-	Bind,
-	StartGui,
-	NewInstance,
-};
-
-
 // ------------------------------ initializing pd ------------------------------
 // -----------------------------------------------------------------------------
 
@@ -40,23 +19,23 @@ pub const Base = struct {
 		out_channels: c_uint,
 		sample_rate: c_uint,
 		is_queued: bool,
-	) Error!Base {
+	) error{AlreadyInitialized, RingBuffer, InitAudio}!Base {
 		if (is_queued) {
 			switch (libpd_queued_init()) {
-				-1 => return Error.AlreadyInitialized,
-				-2 => return Error.RingBuffer,
+				-1 => return error.AlreadyInitialized,
+				-2 => return error.RingBuffer,
 				else => {},
 			}
 			errdefer libpd_queued_release();
 			libpd_set_queued_printhook(libpd_print_concatenator);
 		} else {
 			if (libpd_init() != 0) {
-				return Error.AlreadyInitialized;
+				return error.AlreadyInitialized;
 			}
 			libpd_set_printhook(libpd_print_concatenator);
 		}
 		if (libpd_init_audio(in_channels, out_channels, sample_rate) != 0) {
-			return Error.InitAudio;
+			return error.InitAudio;
 		}
 		return Base{ .queued = is_queued };
 	}
@@ -69,7 +48,7 @@ pub const Base = struct {
 
 	test init {
 		try init(0, 2, 48000, false);
-		try testing.expectError(Error.AlreadyInitialized, init(0, 2, 48000, false));
+		try testing.expectError(error.AlreadyInitialized, init(0, 2, 48000, false));
 	}
 
 	/// Free the ring buffer if we're using it
@@ -106,11 +85,11 @@ pub const Patch = struct {
 	dollar_zero: c_uint,
 
 	/// Open a patch by filename and parent dir path.
-	pub fn fromFile(name: [*:0]const u8, dir: [*:0]const u8) Error!Patch {
+	pub fn fromFile(name: [*:0]const u8, dir: [*:0]const u8) error{OpenFile}!Patch {
 		return if (libpd_openfile(name, dir)) |file| Patch{
 			.handle = file,
 			.dollar_zero = libpd_getdollarzero(file),
-		} else Error.OpenFile;
+		} else error.OpenFile;
 	}
 	extern fn libpd_openfile([*:0]const u8, [*:0]const u8) ?*anyopaque;
 	extern fn libpd_getdollarzero(*anyopaque) c_uint;
@@ -136,6 +115,8 @@ pub fn computeAudio(state: bool) void {
 pub const blockSize = libpd_blocksize;
 extern fn libpd_blocksize() c_uint;
 
+pub const ProcessError = error{ProcessError};
+
 /// Process interleaved float samples from inBuffer -> libpd -> outBuffer
 ///
 /// Buffer sizes are based on # of ticks and channels where:
@@ -144,9 +125,9 @@ pub fn processFloat(
 	ticks: c_uint,
 	in_buffer: ?[*]const f32,
 	out_buffer: ?[*]f32,
-) Error!void {
+) ProcessError!void {
 	if (libpd_process_float(ticks, in_buffer, out_buffer) != 0) {
-		return Error.ProcessFloat;
+		return error.ProcessError;
 	}
 }
 extern fn libpd_process_float(c_uint, ?[*]const f32, ?[*]f32) c_int;
@@ -164,9 +145,9 @@ pub fn processShort(
 	ticks: c_uint,
 	in_buffer: ?[*]const i16,
 	out_buffer: ?[*]i16,
-) Error!void {
+) ProcessError!void {
 	if (libpd_process_short(ticks, in_buffer, out_buffer) != 0) {
-		return Error.ProcessShort;
+		return error.ProcessError;
 	}
 }
 extern fn libpd_process_short(c_uint, ?[*]const c_short, ?[*]c_short) c_int;
@@ -181,9 +162,9 @@ pub fn processDouble(
 	ticks: c_uint,
 	in_buffer: ?[*]const f64,
 	out_buffer: ?[*]f64,
-) Error!void {
+) ProcessError!void {
 	if (libpd_process_short(ticks, in_buffer, out_buffer) != 0) {
-		return Error.ProcessDouble;
+		return error.ProcessError;
 	}
 }
 extern fn libpd_process_double(c_uint, ?[*]const f64, ?[*]f64) c_int;
@@ -194,9 +175,12 @@ extern fn libpd_process_double(c_uint, ?[*]const f64, ?[*]f64) c_int;
 ///
 /// Buffer sizes are based on a single tick and # of channels where:
 ///     `size = libpd_blocksize() * (in/out)channels`.
-pub fn processRawFloat(in_buffer: ?[*]const f32, out_buffer: ?[*]f32) Error!void {
+pub fn processRawFloat(
+	in_buffer: ?[*]const f32,
+	out_buffer: ?[*]f32,
+) ProcessError!void {
 	if (libpd_process_raw(in_buffer, out_buffer) != 0) {
-		return Error.ProcessRawFloat;
+		return error.ProcessError;
 	}
 }
 extern fn libpd_process_raw(?[*]const f32, ?[*]f32) c_int;
@@ -212,9 +196,12 @@ extern fn libpd_process_raw(?[*]const f32, ?[*]f32) c_int;
 /// so any values received from pd patches beyond -1 to 1 will result in garbage.
 ///
 /// Note: for efficiency, does *not* clip input.
-pub fn processRawShort(in_buffer: ?[*]const i16, out_buffer: ?[*]i16) Error!void {
+pub fn processRawShort(
+	in_buffer: ?[*]const i16,
+	out_buffer: ?[*]i16,
+) ProcessError!void {
 	if (libpd_process_raw_short(in_buffer, out_buffer) != 0) {
-		return Error.ProcessRawShort;
+		return error.ProcessError;
 	}
 }
 extern fn libpd_process_raw_short(?[*]const i16, ?[*]i16) c_int;
@@ -227,9 +214,12 @@ extern fn libpd_process_raw_short(?[*]const i16, ?[*]i16) c_int;
 ///     `size = libpd_blocksize() * (in/out)channels`.
 ///
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
-pub fn processRawDouble(in_buffer: ?[*]const f64, out_buffer: ?[*]f64) Error!void {
+pub fn processRawDouble(
+	in_buffer: ?[*]const f64,
+	out_buffer: ?[*]f64,
+) ProcessError!void {
 	if (libpd_process_raw_double(in_buffer, out_buffer) != 0) {
-		return Error.ProcessRawDouble;
+		return error.ProcessError;
 	}
 }
 extern fn libpd_process_raw_double(?[*]const f64, ?[*]f64) c_int;
@@ -239,27 +229,29 @@ extern fn libpd_process_raw_double(?[*]const f64, ?[*]f64) c_int;
 // -----------------------------------------------------------------------------
 
 /// Get the size of an array by name.
-pub fn arraySize(name: [*:0]const u8) Error!c_uint {
+pub fn arraySize(name: [*:0]const u8) error{ArrayNotFound}!c_uint {
 	const size = libpd_arraysize(name);
-	return if (size < 0) Error.ArrayNotFound else @intCast(size);
+	return if (size < 0) error.ArrayNotFound else @intCast(size);
 }
 extern fn libpd_arraysize([*:0]const u8) c_int;
 
 /// (re)size an array by name; sizes <= 0 are clipped to 1.
-pub fn resizeArray(name: [*:0]const u8, size: c_ulong) Error!void {
+pub fn resizeArray(name: [*:0]const u8, size: c_ulong) error{ArrayNotFound}!void {
 	if (libpd_resize_array(name, size) != 0) {
-		return Error.ArrayNotFound;
+		return error.ArrayNotFound;
 	}
 }
 extern fn libpd_resize_array([*:0]const u8, c_ulong) c_int;
 
+pub const ArrayError = error{ArrayNotFound, ArrayOutOfBounds};
+
 /// Read values from named src array and write into `dest` starting at an offset.
 ///
 /// Note: performs no bounds checking on `dest`.
-pub fn readArray(dest: []f32, name: [*:0]const u8, offset: c_uint) Error!void {
+pub fn readArray(dest: []f32, name: [*:0]const u8, offset: c_uint) ArrayError!void {
 	return switch (libpd_read_array(dest.ptr, name, offset, @intCast(dest.len))) {
-		-1 => Error.ArrayNotFound,
-		-2 => Error.ArrayOutOfBounds,
+		-1 => error.ArrayNotFound,
+		-2 => error.ArrayOutOfBounds,
 		else => {},
 	};
 }
@@ -268,10 +260,10 @@ extern fn libpd_read_array([*]f32, [*:0]const u8, c_uint, c_uint) c_int;
 /// Read values from `src` and write into named dest array starting at an offset.
 ///
 /// Note: performs no bounds checking on `src`.
-pub fn writeArray(name: [*:0]const u8, offset: c_uint, src: []const f32) Error!void {
+pub fn writeArray(name: [*:0]const u8, offset: c_uint, src: []const f32) ArrayError!void {
 	return switch (libpd_write_array(name, offset, src.ptr, @intCast(src.len))) {
-		-1 => Error.ArrayNotFound,
-		-2 => Error.ArrayOutOfBounds,
+		-1 => error.ArrayNotFound,
+		-2 => error.ArrayOutOfBounds,
 		else => {},
 	};
 }
@@ -284,11 +276,11 @@ extern fn libpd_write_array([*:0]const u8, c_uint, [*]const f32, c_uint) c_int;
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
 ///
 /// Double-precision variant of libpd_read_array().
-pub fn readArrayDouble(dest: []f64, name: [*:0]const u8, offset: c_uint) Error!void {
+pub fn readArrayDouble(dest: []f64, name: [*:0]const u8, offset: c_uint) ArrayError!void {
 	const res = libpd_read_array_double(dest.ptr, name, offset, @intCast(dest.len));
 	return switch (res) {
-		-1 => Error.ArrayNotFound,
-		-2 => Error.ArrayOutOfBounds,
+		-1 => error.ArrayNotFound,
+		-2 => error.ArrayOutOfBounds,
 		else => {},
 	};
 }
@@ -301,11 +293,15 @@ extern fn libpd_read_array_double([*]f64, [*:0]const u8, c_uint, c_uint) c_int;
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
 ///
 /// Double-precision variant of libpd_write_array().
-pub fn writeArrayDouble(name: [*:0]const u8, offset: c_uint, src: []const f64) Error!void {
+pub fn writeArrayDouble(
+	name: [*:0]const u8,
+	offset: c_uint,
+	src: []const f64,
+) ArrayError!void {
 	const res = libpd_write_array_double(name, offset, src.ptr, @intCast(src.len));
 	return switch (res) {
-		-1 => Error.ArrayNotFound,
-		-2 => Error.ArrayOutOfBounds,
+		-1 => error.ArrayNotFound,
+		-2 => error.ArrayOutOfBounds,
 		else => {},
 	};
 }
@@ -315,12 +311,14 @@ extern fn libpd_write_array_double([*:0]const u8, c_uint, [*]const f64, c_uint) 
 // -------------------------- sending messages to pd ---------------------------
 // -----------------------------------------------------------------------------
 
+pub const SendError = error{ReceiverNotFound};
+
 /// Send a bang to a destination receiver.
 ///
 /// Ex: `sendBang("foo")` will send a bang to [s foo] on the next tick.
-pub fn sendBang(recv: [*:0]const u8) Error!void {
+pub fn sendBang(recv: [*:0]const u8) SendError!void {
 	if (libpd_bang(recv) != 0) {
-		return Error.ReceiverNotFound;
+		return error.ReceiverNotFound;
 	}
 }
 extern fn libpd_bang([*:0]const u8) c_int;
@@ -328,9 +326,9 @@ extern fn libpd_bang([*:0]const u8) c_int;
 /// Send a float to a destination receiver.
 ///
 /// Ex: `sendFloat("foo", 1)` will send a 1.0 to [s foo] on the next tick.
-pub fn sendFloat(recv: [*:0]const u8, x: f32) Error!void {
+pub fn sendFloat(recv: [*:0]const u8, x: f32) SendError!void {
 	if (libpd_float(recv, x) != 0) {
-		return Error.ReceiverNotFound;
+		return error.ReceiverNotFound;
 	}
 }
 extern fn libpd_float([*:0]const u8, f32) c_int;
@@ -340,18 +338,18 @@ extern fn libpd_float([*:0]const u8, f32) c_int;
 /// Ex: `sendDouble("foo", 1.1)` will send a 1.1 to [s foo] on the next tick
 ///
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
-pub fn sendDouble(recv: [*:0]const u8, x: f64) Error!void {
+pub fn sendDouble(recv: [*:0]const u8, x: f64) SendError!void {
 	if (libpd_double(recv, x) != 0) {
-		return Error.ReceiverNotFound;
+		return error.ReceiverNotFound;
 	}
 }
 extern fn libpd_double([*:0]const u8, f64) c_int;
 
 /// Send a symbol to a destination receiver.
 /// Ex: `sendSymbol("foo", "bar")` will send "bar" to [s foo] on the next tick.
-pub fn sendSymbol(recv: [*:0]const u8, s: [*:0]const u8) Error!void {
+pub fn sendSymbol(recv: [*:0]const u8, s: [*:0]const u8) SendError!void {
 	if (libpd_symbol(recv, s) != 0) {
-		return Error.ReceiverNotFound;
+		return error.ReceiverNotFound;
 	}
 }
 extern fn libpd_symbol([*:0]const u8, [*:0]const u8) c_int;
@@ -364,15 +362,15 @@ extern fn libpd_symbol([*:0]const u8, [*:0]const u8) c_int;
 /// Messages can be of a smaller length as max length is only an upper bound.
 ///
 /// Note: no cleanup is required for unfinished messages.
-pub fn startMessage(maxlen: c_uint) Error!void {
+pub fn startMessage(maxlen: c_uint) error{MessageTooLong}!void {
 	if (libpd_start_message(maxlen) != 0) {
-		return Error.MessageTooLong;
+		return error.MessageTooLong;
 	}
 }
 extern fn libpd_start_message(maxlen: c_uint) c_int;
 
 test startMessage {
-	try testing.expectError(Error.MessageTooLong, startMessage(1234567890));
+	try testing.expectError(error.MessageTooLong, startMessage(1234567890));
 	try startMessage(1);
 }
 
@@ -400,9 +398,9 @@ extern fn libpd_add_symbol([*:0]const u8) void;
 ///     addSymbol("bar");
 ///     finishList("foo");
 /// ```
-pub fn finishList(recv: [*:0]const u8) Error!void {
+pub fn finishList(recv: [*:0]const u8) SendError!void {
 	if (libpd_finish_list(recv) != 0) {
-		return Error.ReceiverNotFound;
+		return error.ReceiverNotFound;
 	}
 }
 extern fn libpd_finish_list([*:0]const u8) c_int;
@@ -418,9 +416,9 @@ extern fn libpd_finish_list([*:0]const u8) c_int;
 ///     addFloat(1);
 ///     finishMessage("pd", "dsp");
 /// ```
-pub fn finishMessage(recv: [*:0]const u8, msg: [*:0]const u8) Error!void {
+pub fn finishMessage(recv: [*:0]const u8, msg: [*:0]const u8) SendError!void {
 	if (libpd_finish_message(recv, msg) != 0) {
-		return Error.ReceiverNotFound;
+		return error.ReceiverNotFound;
 	}
 }
 extern fn libpd_finish_message([*:0]const u8, [*:0]const u8) c_int;
@@ -454,17 +452,17 @@ extern fn libpd_set_symbol(*Atom, [*:0]const u8) void;
 ///     setSymbol(&v[2], "bar");
 ///     sendList("foo", &v);
 /// ```
-pub fn sendList(recv: [*:0]const u8, av: []Atom) Error!void {
+pub fn sendList(recv: [*:0]const u8, av: []Atom) SendError!void {
 	if (libpd_list(recv, av.len, av.ptr) != 0) {
-		return Error.ReceiverNotFound;
+		return error.ReceiverNotFound;
 	}
 }
 extern fn libpd_list([*:0]const u8, c_uint, [*]Atom) c_int;
 
 
-pub fn sendMessage(recv: [*:0]const u8, msg: [*:0]const u8, av: []Atom) Error!void {
+pub fn sendMessage(recv: [*:0]const u8, msg: [*:0]const u8, av: []Atom) SendError!void {
 	if (libpd_message(recv, msg, @intCast(av.len), av.ptr) != 0) {
-		return Error.ReceiverNotFound;
+		return error.ReceiverNotFound;
 	}
 }
 extern fn libpd_message([*:0]const u8, [*:0]const u8, c_uint, [*]Atom) c_int;
@@ -478,8 +476,8 @@ extern fn libpd_message([*:0]const u8, [*:0]const u8, c_uint, [*]Atom) c_int;
 /// Ex: `bind("foo")` adds a "virtual" `[r foo]` which forwards messages to
 ///     the libpd message hooks
 /// returns an opaque receiver pointer or NULL on failure
-pub fn bind(recv: [*:0]const u8) Error!*anyopaque {
-	return libpd_bind(recv) orelse Error.Bind;
+pub fn bind(recv: [*:0]const u8) error{BindError}!*anyopaque {
+	return libpd_bind(recv) orelse error.BindError;
 }
 extern fn libpd_bind([*:0]const u8) ?*anyopaque;
 
@@ -760,9 +758,9 @@ pub extern fn libpd_set_midibytehook(?*const MidiByteHook) void;
 /// Open the current patches within a pd vanilla GUI.
 /// Requires the path to pd's main folder that contains bin/, tcl/, etc.
 /// For a macOS .app bundle: /path/to/Pd-#.#-#.app/Contents/Resources.
-pub fn startGui(path: [*:0]const u8) Error!void {
+pub fn startGui(path: [*:0]const u8) error{StartGui}!void {
 	if (libpd_start_gui(path) != 0) {
-		return Error.StartGui;
+		return error.StartGui;
 	}
 }
 extern fn libpd_start_gui([*:0]const u8) c_int;
@@ -787,8 +785,8 @@ extern fn libpd_poll_gui() c_int;
 /// Create a new pd instance and set as current.
 /// Note: use this in place of pdinstance_new().
 /// returns new instance or NULL when libpd is not compiled with PDINSTANCE.
-pub fn newInstance() Error!*Instance {
-	return libpd_new_instance() orelse Error.NewInstance;
+pub fn newInstance() error{NewInstance}!*Instance {
+	return libpd_new_instance() orelse error.NewInstance;
 }
 extern fn libpd_new_instance() ?*Instance;
 
