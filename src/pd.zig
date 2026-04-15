@@ -1022,8 +1022,13 @@ pub const Symbol = extern struct {
 	thing: ?*Pd,
 	next: ?*Symbol,
 
-	pub const gen = gensym;
-	extern fn gensym([*:0]const u8) *Symbol; // could run out of memory
+	pub fn add(s: [*:0]const u8) error{OutOfMemory}!*Symbol {
+		return gensym(s) orelse error.OutOfMemory;
+	}
+	pub fn gen(s: [*:0]const u8) *Symbol {
+		return gensym(s) orelse &s_;
+	}
+	extern fn gensym([*:0]const u8) ?*Symbol;
 };
 
 pub const setExternDir = class_set_extern_dir;
