@@ -86,6 +86,7 @@ pub fn build(b: *Build) !void {
 		.imports = &.{.{ .name = "options", .module = blk: {
 			const o = b.addOptions();
 			o.addOption(u8, "float_size", opt.float_size);
+			o.addOption(bool, "multi", opt.lib.multi);
 			break :blk o.createModule();
 		}}},
 	});
