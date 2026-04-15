@@ -245,4 +245,9 @@ pub const Class = extern struct {
 	extern fn pd_class_new(
 		*Symbol, ?*const NewMethod, ?*const Method, usize, c_uint, c_uint, ...,
 	) ?*Class;
+
+	pub fn getFirst() error{SingleInstanceMode}!*Class {
+		return if (m.opt.multi) class_getfirst() else error.SingleInstanceMode;
+	}
+	extern fn class_getfirst() *Class;
 };

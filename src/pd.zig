@@ -94,8 +94,8 @@ pub const Atom = extern struct {
 		return .{ .type = .float, .w = .{ .float = f } };
 	}
 
-	pub inline fn symbol(s: *Symbol) Atom {
-		return .{ .type = .symbol, .w = .{ .symbol = s } };
+	pub inline fn symbol(sym: *Symbol) Atom {
+		return .{ .type = .symbol, .w = .{ .symbol = sym } };
 	}
 
 	pub inline fn pointer(p: *GPointer) Atom {
@@ -369,12 +369,12 @@ pub const TimeUnit = extern struct {
 	pub fn init(amount: Float, unit: *Symbol) error{UnknownTimeUnit}!TimeUnit {
 		const name: [:0]const u8 = std.mem.sliceTo(unit.name, 0);
 		const is_per = std.mem.startsWith(u8, name, "per");
-		const s = if (is_per) name[3..] else name;
+		const sym = if (is_per) name[3..] else name;
 
-		const in_samples = std.mem.startsWith(u8, s, "sam");
-		const f: Float = if (in_samples or std.mem.startsWith(u8, s, "ms")) 1
-		else if (std.mem.startsWith(u8, s, "sec")) 1000
-		else if (std.mem.startsWith(u8, s, "min")) 60000
+		const in_samples = std.mem.startsWith(u8, sym, "sam");
+		const f: Float = if (in_samples or std.mem.startsWith(u8, sym, "ms")) 1
+		else if (std.mem.startsWith(u8, sym, "sec")) 1000
+		else if (std.mem.startsWith(u8, sym, "min")) 60000
 		else return error.UnknownTimeUnit;
 
 		const amt = if (amount <= 0) 1 else amount;
@@ -574,6 +574,88 @@ pub const Inlet = opaque {
 	}
 	extern fn pointerinlet_new(*Object, *GPointer) ?*Inlet;
 };
+
+
+// --------------------------------- Instance ----------------------------------
+// -----------------------------------------------------------------------------
+pub const Midi = opaque {};
+pub const Inter = opaque {};
+pub const Ugen = opaque {};
+
+pub const Instance = if (opt.multi) extern struct {
+	/// global time in Pd ticks
+	systime: f64,
+	/// linked list of set clocks
+	clock_setlist: ?*Clock,
+	/// linked list of all root canvases
+	canvaslist: ?*GList,
+	/// linked list of all templates
+	templatelist: ?*cnv.Template,
+	/// ordinal number of this instance
+	instanceno: c_uint,
+	/// symbol table hash table
+	symhash: [*]*Symbol,
+	/// private stuff for x_midi.c
+	midi: *Midi,
+	/// private stuff for s_inter.c
+	inter: *Inter,
+	/// private stuff for d_ugen.c
+	ugen: *Ugen,
+	/// semi-private stuff in g_canvas.h
+	gui: *GList.Instance,
+	/// semi-private stuff in s_stuff.h
+	stuff: *stf.Instance,
+	/// most recently created object
+	newest: *Pd,
+
+	s_pointer: Symbol,
+	s_float: Symbol,
+	s_symbol: Symbol,
+	s_bang: Symbol,
+	s_list: Symbol,
+	s_anything: Symbol,
+	s_signal: Symbol,
+	s__N: Symbol,
+	s__X: Symbol,
+	s_x: Symbol,
+	s_y: Symbol,
+	s_: Symbol,
+
+	islocked: c_uint,
+
+	pub fn init() error{OutOfMemory}!*Instance {
+		return pdinstance_new() orelse error.OutOfMemory;
+	}
+	extern fn pdinstance_new() ?*Instance;
+
+	pub const get = pd_getinstance;
+	extern fn pd_getinstance() *Instance;
+
+	pub const set = pd_setinstance;
+	extern fn pd_setinstance(self: *const Instance) void;
+
+	pub const free = pdinstance_free;
+	extern fn pdinstance_free(self: *Instance) void;
+} else extern struct {
+	systime: f64,
+	clock_setlist: ?*Clock,
+	canvaslist: ?*GList,
+	templatelist: ?*cnv.Template,
+	instanceno: c_uint,
+	symhash: [*]*Symbol,
+	midi: *Midi,
+	inter: *Inter,
+	ugen: *Ugen,
+	gui: *GList.Instance,
+	stuff: *stf.Instance,
+	newest: *Pd,
+};
+
+pub extern var pd_maininstance: Instance;
+
+pub inline fn this() *Instance {
+	return if (opt.multi) Instance.get() else &pd_maininstance;
+}
 
 
 // ---------------------------------- Memory -----------------------------------
@@ -807,8 +889,8 @@ pub const Pd = extern struct {
 	/// Convenience routine giving a stdarg interface to `typedmess()`.
 	/// Only ten args supported; it seems unlikely anyone will need more since
 	/// longer messages are likely to be programmatically generated anyway.
-	pub fn vMess(self: *Pd, s: *Symbol, fmt: [*:0]const u8, args: anytype) void {
-		@call(.auto, pd_vmess, .{ self, s, fmt } ++ args);
+	pub fn vMess(self: *Pd, sym: *Symbol, fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, pd_vmess, .{ self, sym, fmt } ++ args);
 	}
 	extern fn pd_vmess(*Pd, *Symbol, [*:0]const u8, ...) void;
 
@@ -1022,11 +1104,11 @@ pub const Symbol = extern struct {
 	thing: ?*Pd,
 	next: ?*Symbol,
 
-	pub fn add(s: [*:0]const u8) error{OutOfMemory}!*Symbol {
-		return gensym(s) orelse error.OutOfMemory;
+	pub fn add(name: [*:0]const u8) error{OutOfMemory}!*Symbol {
+		return gensym(name) orelse error.OutOfMemory;
 	}
-	pub fn gen(s: [*:0]const u8) *Symbol {
-		return gensym(s) orelse &s_;
+	pub fn gen(name: [*:0]const u8) *Symbol {
+		return gensym(name) orelse s.empty();
 	}
 	extern fn gensym([*:0]const u8) ?*Symbol;
 };
@@ -1037,18 +1119,67 @@ extern fn class_set_extern_dir(*Symbol) void;
 pub const notify = text_notifybyname;
 extern fn text_notifybyname(*Symbol) void;
 
-pub extern var s_pointer: Symbol;
-pub extern var s_float: Symbol;
-pub extern var s_symbol: Symbol;
-pub extern var s_bang: Symbol;
-pub extern var s_list: Symbol;
-pub extern var s_anything: Symbol;
-pub extern var s_signal: Symbol;
-pub extern var s__N: Symbol;
-pub extern var s__X: Symbol;
-pub extern var s_x: Symbol;
-pub extern var s_y: Symbol;
-pub extern var s_: Symbol;
+pub const s = struct {
+	pub inline fn pointer() *Symbol {
+		return if (opt.multi) &this().s_pointer else &s_pointer;
+	}
+	extern var s_pointer: Symbol;
+
+	pub inline fn float() *Symbol {
+		return if (opt.multi) &this().s_float else &s_float;
+	}
+	pub extern var s_float: Symbol;
+
+	pub inline fn symbol() *Symbol {
+		return if (opt.multi) &this().s_symbol else &s_symbol;
+	}
+	pub extern var s_symbol: Symbol;
+
+	pub inline fn bang() *Symbol {
+		return if (opt.multi) &this().s_bang else &s_bang;
+	}
+	pub extern var s_bang: Symbol;
+
+	pub inline fn list() *Symbol {
+		return if (opt.multi) &this().s_list else &s_list;
+	}
+	pub extern var s_list: Symbol;
+
+	pub inline fn anything() *Symbol {
+		return if (opt.multi) &this().s_anything else &s_anything;
+	}
+	pub extern var s_anything: Symbol;
+
+	pub inline fn signal() *Symbol {
+		return if (opt.multi) &this().s_signal else &s_signal;
+	}
+	pub extern var s_signal: Symbol;
+
+	pub inline fn _N() *Symbol {
+		return if (opt.multi) &this().s__N else &s__N;
+	}
+	pub extern var s__N: Symbol;
+
+	pub inline fn _X() *Symbol {
+		return if (opt.multi) &this().s__X else &s__X;
+	}
+	pub extern var s__X: Symbol;
+
+	pub inline fn x() *Symbol {
+		return if (opt.multi) &this().s_x else &s_x;
+	}
+	pub extern var s_x: Symbol;
+
+	pub inline fn y() *Symbol {
+		return if (opt.multi) &this().s_y else &s_y;
+	}
+	pub extern var s_y: Symbol;
+
+	pub inline fn empty() *Symbol {
+		return if (opt.multi) &this().s_ else &s_;
+	}
+	pub extern var s_: Symbol;
+};
 
 
 // ---------------------------------- System -----------------------------------
@@ -1403,44 +1534,6 @@ test bigOrSmall {
 	try std.testing.expect(bigOrSmall(small));
 	try std.testing.expect(!bigOrSmall(almost_big));
 	try std.testing.expect(!bigOrSmall(almost_small));
-}
-
-pub const Instance = extern struct {
-	/// global time in Pd ticks
-	systime: f64,
-	/// linked list of set clocks
-	clock_setlist: ?*Clock,
-	/// linked list of all root canvases
-	canvaslist: ?*GList,
-	/// linked list of all templates
-	templatelist: ?*cnv.Template,
-	/// ordinal number of this instance
-	instanceno: c_uint,
-	/// symbol table hash table
-	symhash: [*]*Symbol,
-	/// private stuff for x_midi.c
-	midi: *Midi,
-	/// private stuff for s_inter.c
-	inter: *Inter,
-	/// private stuff for d_ugen.c
-	ugen: *Ugen,
-	/// semi-private stuff in g_canvas.h
-	gui: *GList.Instance,
-	/// semi-private stuff in s_stuff.h
-	stuff: *stf.Instance,
-	/// most recently created object
-	newest: *Pd,
-	// islocked: c_uint, // should only exist if threads are enabled
-
-	pub const Midi = opaque {};
-	pub const Inter = opaque {};
-	pub const Ugen = opaque {};
-};
-pub extern const pd_maininstance: Instance;
-
-pub fn this() *const Instance {
-	// TODO: fix this to be multi-instance compatible
-	return &pd_maininstance;
 }
 
 pub const OutConnect = opaque {};
