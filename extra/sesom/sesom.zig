@@ -1,3 +1,5 @@
+//! Reverse `[moses]`. Outputs numbers to the left if they're greater than control value.
+
 const pd = @import("pd");
 
 const Float = pd.Float;
@@ -25,8 +27,8 @@ const Sesom = extern struct {
 
 		_ = try obj.inletFloat(&self.f);
 		self.* = .{
-			.out_l = try .init(obj, &pd.s_float),
-			.out_r = try .init(obj, &pd.s_float),
+			.out_l = try .init(obj, pd.s.float()),
+			.out_r = try .init(obj, pd.s.float()),
 			.f = f,
 		};
 		return self;
