@@ -19,11 +19,11 @@ pub const Base = struct {
 		out_channels: c_uint,
 		sample_rate: c_uint,
 		is_queued: bool,
-	) error{AlreadyInitialized, RingBuffer, InitAudio}!Base {
+	) error{AlreadyInitialized, RingBufferFail, InitAudioFail}!Base {
 		if (is_queued) {
 			switch (libpd_queued_init()) {
 				-1 => return error.AlreadyInitialized,
-				-2 => return error.RingBuffer,
+				-2 => return error.RingBufferFail,
 				else => {},
 			}
 			errdefer libpd_queued_release();
@@ -35,7 +35,7 @@ pub const Base = struct {
 			libpd_set_printhook(libpd_print_concatenator);
 		}
 		if (libpd_init_audio(in_channels, out_channels, sample_rate) != 0) {
-			return error.InitAudio;
+			return error.InitAudioFail;
 		}
 		return Base{ .queued = is_queued };
 	}
@@ -787,8 +787,8 @@ extern fn libpd_poll_gui() c_int;
 /// Create a new pd instance and set as current.
 /// Note: use this in place of pdinstance_new().
 /// returns new instance or NULL when libpd is not compiled with PDINSTANCE.
-pub fn newInstance() error{NewInstance}!*Instance {
-	return libpd_new_instance() orelse error.NewInstance;
+pub fn newInstance() error{NewInstanceFail}!*Instance {
+	return libpd_new_instance() orelse error.NewInstanceFail;
 }
 extern fn libpd_new_instance() ?*Instance;
 
