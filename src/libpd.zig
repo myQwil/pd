@@ -787,8 +787,10 @@ extern fn libpd_poll_gui() c_int;
 /// Create a new pd instance and set as current.
 /// Note: use this in place of pdinstance_new().
 /// returns new instance or NULL when libpd is not compiled with PDINSTANCE.
-pub fn newInstance() error{NewInstanceFail}!*Instance {
-	return libpd_new_instance() orelse error.NewInstanceFail;
+pub fn newInstance() error{SingleInstanceMode, OutOfMemory}!*Instance {
+	return if (pd.opt.multi)
+		libpd_new_instance() orelse error.OutOfMemory
+	else error.SingleInstanceMode;
 }
 extern fn libpd_new_instance() ?*Instance;
 
