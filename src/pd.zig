@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 pub const opt = @import("options");
 pub const imp = @import("imp.zig");
 pub const cnv = @import("canvas.zig");
@@ -712,9 +713,14 @@ pub const Object = extern struct {
 	pix: [2]c_short = .{ 0, 0 },
 	/// requested width in chars, 0 if auto
 	width: c_ushort = 0,
-	type: Type = .text,
+	bf: packed struct(BitFieldType) {
+		type: Type = .text,
+		_unused: @Int(.unsigned, @bitSizeOf(BitFieldType) - 2) = 0,
+	} = .{},
 
-	const Type = enum(u8) {
+	const BitFieldType = if (builtin.os.tag == .windows) u32 else u8;
+
+	const Type = enum(u2) {
 		/// just a textual comment
 		text = 0,
 		/// a MAX style patchable object
