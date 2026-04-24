@@ -1,3 +1,4 @@
+const c = @import("cdef");
 const m = @import("pd.zig");
 const cnv = @import("canvas.zig");
 
@@ -90,11 +91,13 @@ pub const FontStyleFlags = packed struct(c_uint) {
 		times = 2,
 	};
 
-	pub const set = iem_inttofstyle;
-	extern fn iem_inttofstyle(*FontStyleFlags, c_uint) void;
+	pub fn set(self: *FontStyleFlags, n: c_int) void {
+		c.iem_inttofstyle(@ptrCast(self), n);
+	}
 
-	pub const toInt = iem_fstyletoint;
-	extern fn iem_fstyletoint(*FontStyleFlags) c_uint;
+	pub fn toInt(self: *FontStyleFlags) c_int {
+		c.iem_fstyletoint(@ptrCast(self));
+	}
 };
 
 pub const InitSymArgs = packed struct(c_uint) {
@@ -108,11 +111,13 @@ pub const InitSymArgs = packed struct(c_uint) {
 	locked: bool,
 	_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 28),
 
-	pub const set = iem_inttosymargs;
-	extern fn iem_inttosymargs(*InitSymArgs, c_uint) void;
+	pub fn set(self: *InitSymArgs, n: c_int) void {
+		c.iem_inttosymargs(@ptrCast(self), n);
+	}
 
-	pub const toInt = iem_symargstoint;
-	extern fn iem_symargstoint(*InitSymArgs) c_uint;
+	pub fn toInt(self: *InitSymArgs) c_int {
+		c.iem_symargstoint(@ptrCast(self));
+	}
 };
 
 pub const Gui = extern struct {
@@ -150,98 +155,102 @@ pub const Gui = extern struct {
 		return @as(Float, @floatFromInt(defaultSize())) / 15;
 	}
 
-	pub const deinit = iemgui_free;
-	extern fn iemgui_free(*Gui) void;
+	pub fn deinit(self: *Gui) void {
+		c.iemgui_free(@ptrCast(self));
+	}
 
-	pub const verifySendNotEqReceive = iemgui_verify_snd_ne_rcv;
-	extern fn iemgui_verify_snd_ne_rcv(*Gui) void;
+	pub fn verifySendNotEqReceive(self: *Gui) void {
+		c.iemgui_verify_snd_ne_rcv(@ptrCast(self));
+	}
 
 	/// Get the send, receive, and label symbols in their unexpanded "$" form.
 	/// Initialize them if necessary.
-	pub const getDollarSymbols = iemgui_all_sym2dollararg;
-	extern fn iemgui_all_sym2dollararg(*Gui, srl: [*]*Symbol) void;
+	pub fn getDollarSymbols(self: *Gui, srl: [*]*Symbol) void {
+		c.iemgui_all_sym2dollararg(@ptrCast(self), @ptrCast(srl));
+	}
 
 	/// Set the send, receive, and label symbols from an unexpanded "$" form.
 	/// They will be converted to expanded form in the process.
-	pub const setDollarSymbols = iemgui_all_dollararg2sym;
-	extern fn iemgui_all_dollararg2sym(*Gui, srl: [*]*Symbol) void;
+	pub fn setDollarSymbols(self: *Gui, srl: [*]*Symbol) void {
+		c.iemgui_all_dollararg2sym(@ptrCast(self), @ptrCast(srl));
+	}
 
-	pub const getName = iemgui_new_dogetname;
-	extern fn iemgui_new_dogetname(*Gui, index: c_uint, argv: [*]Atom) ?*Symbol;
+	pub fn getName(self: *Gui, index: usize, argv: [*]Atom) ?*Symbol {
+		return @ptrCast(c.iemgui_new_dogetname(
+			@ptrCast(self), @intCast(index), @ptrCast(argv)));
+	}
 
-	pub const getNames = iemgui_new_getnames;
-	extern fn iemgui_new_getnames(*Gui, index: c_uint, argv: ?[*]Atom) void;
+	pub fn getNames(self: *Gui, index: usize, argv: ?[*]Atom) void {
+		c.iemgui_new_getnames(@ptrCast(self), @intCast(index), @ptrCast(argv));
+	}
 
-	pub const loadColors = iemgui_all_loadcolors;
-	extern fn iemgui_all_loadcolors(*Gui, bcol: *Atom, fcol: *Atom, lcol: *Atom) void;
+	pub fn loadColors(self: *Gui, bcol: *Atom, fcol: *Atom, lcol: *Atom) void {
+		c.iemgui_all_loadcolors(
+			@ptrCast(self), @ptrCast(bcol), @ptrCast(fcol), @ptrCast(lcol));
+	}
 
-	pub const setDrawFunctions = iemgui_setdrawfunctions;
-	extern fn iemgui_setdrawfunctions(*Gui, w: *const DrawFunctions) void;
+	pub fn setDrawFunctions(self: *Gui, w: *const DrawFunctions) void {
+		c.iemgui_setdrawfunctions(@ptrCast(self), @ptrCast(w));
+	}
 
 	/// Store saveable symbols (spaces and dollars escaped) into srl[3] and bflcol[3].
-	pub const save = iemgui_save;
-	extern fn iemgui_save(*Gui, srl: [*]*Symbol, bflcol: [*]*Symbol) void;
+	pub fn save(self: *Gui, srl: [*]*Symbol, bflcol: [*]*Symbol) void {
+		c.iemgui_save(@ptrCast(self), @ptrCast(srl), @ptrCast(bflcol));
+	}
 
 	/// Inform GUIs that glist's zoom is about to change.  The glist will
 	/// take care of x,y locations but we have to adjust width and height.
-	pub const zoom = iemgui_zoom;
-	extern fn iemgui_zoom(*Gui, zoom: Float) void;
+	pub fn zoom(self: *Gui, f: Float) void {
+		c.iemgui_zoom(@ptrCast(self), f);
+	}
 
 	/// When creating a new GUI from menu onto a zoomed canvas, pretend to
 	/// change the canvas's zoom so we'll get properly sized
-	pub const newZoom = iemgui_newzoom;
-	extern fn iemgui_newzoom(*Gui) void;
+	pub fn newZoom(self: *Gui) void {
+		c.iemgui_newzoom(@ptrCast(self));
+	}
 
-	pub const properties = iemgui_properties;
-	extern fn iemgui_properties(*Gui, srl: [*]*Symbol) void;
+	pub fn properties(self: *Gui, srl: [*]*Symbol) void {
+		c.iemgui_properties(@ptrCast(self), @ptrCast(srl));
+	}
 
 	pub fn size(self: *Gui, x: *anyopaque) void {
-		iemgui_size(x, self);
+		c.iemgui_size(x, @ptrCast(self));
 	}
-	extern fn iemgui_size(*anyopaque, *Gui) void;
 
-	pub fn delta(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom)
-	void {
-		iemgui_delta(x, self, s, @intCast(av.len), av.ptr);
+	pub fn delta(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
+		c.iemgui_delta(x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
 	}
-	extern fn iemgui_delta(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
-	pub fn pos(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom)
-	void {
-		iemgui_pos(x, self, s, @intCast(av.len), av.ptr);
+	pub fn pos(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
+		c.iemgui_pos(x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
 	}
-	extern fn iemgui_pos(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
-	pub fn color(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom)
-	void {
-		iemgui_color(x, self, s, @intCast(av.len), av.ptr);
+	pub fn color(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
+		c.iemgui_color(x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
 	}
-	extern fn iemgui_color(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
 	pub fn send(self: *Gui, x: *anyopaque, s: *Symbol) void {
-		iemgui_send(x, self, s);
+		c.iemgui_send(x, @ptrCast(self), @ptrCast(s));
 	}
-	extern fn iemgui_send(*anyopaque, *Gui, *Symbol) void;
 
 	pub fn receive(self: *Gui, x: *anyopaque, s: *Symbol) void {
-		iemgui_receive(x, self, s);
+		c.iemgui_receive(x, @ptrCast(self), @ptrCast(s));
 	}
-	extern fn iemgui_receive(*anyopaque, *Gui, *Symbol) void;
 
 	pub fn label(self: *Gui, x: *anyopaque, s: *Symbol) void {
-		iemgui_label(x, self, s);
+		c.iemgui_label(x, @ptrCast(self), @ptrCast(s));
 	}
-	extern fn iemgui_label(*anyopaque, *Gui, *Symbol) void;
 
 	pub fn labelPos(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
-		iemgui_label_pos(x, self, s, @intCast(av.len), av.ptr);
+		c.iemgui_label_pos(
+			x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
 	}
-	extern fn iemgui_label_pos(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
 	pub fn labelFont(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
-		iemgui_label_font(x, self, s, @intCast(av.len), av.ptr);
+		c.iemgui_label_font(
+			x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
 	}
-	extern fn iemgui_label_font(*anyopaque, *Gui, *Symbol, c_uint, [*]const Atom) void;
 
 	pub const SendToGui = enum(c_int) {
 		auto = -1,
@@ -256,16 +265,15 @@ pub const Gui = extern struct {
 		s: *Symbol,
 		send_to_gui: SendToGui,
 	) void {
-		iemgui_dolabel(x, self, s, @intFromEnum(send_to_gui));
+		c.iemgui_dolabel(x, @ptrCast(self), @ptrCast(s), @intFromEnum(send_to_gui));
 	}
-	extern fn iemgui_dolabel(*anyopaque, *Gui, *Symbol, c_int) void;
 
-	pub const Scale = enum(c_uint) {
+	pub const Scale = enum(c_int) {
 		linear = 0,
 		logarithmic = 1,
 	};
 
-	pub const RangeCheck = enum(c_uint) {
+	pub const RangeCheck = enum(c_int) {
 		none = 0,
 		toggle = 1,
 		flash = 2,
@@ -286,50 +294,57 @@ pub const Gui = extern struct {
 		scale: Scale, mode_label0: [*:0]const u8, mode_label1: [*:0]const u8,
 		canloadbang: bool, steady: Steady, number: c_int,
 	) void {
-		iemgui_new_dialog(x, self, objname, width, width_min, height, height_min,
-			range_min, range_max, @intFromEnum(range_checkmode), @intFromEnum(scale),
-			mode_label0, mode_label1, @intFromBool(canloadbang),
-			@intFromEnum(steady), number);
+		c.iemgui_new_dialog(
+			x, @ptrCast(self), objname,
+			width, width_min,
+			height, height_min,
+			range_min, range_max, @intFromEnum(range_checkmode),
+			@intFromEnum(scale), mode_label0, mode_label1,
+			@intFromBool(canloadbang), @intFromEnum(steady), number,
+		);
 	}
-	extern fn iemgui_new_dialog(
-		*anyopaque, *Gui, [*:0]const u8,
-		Float, Float, Float, Float, Float, Float, c_uint, c_uint,
-		[*:0]const u8, [*:0]const u8, c_uint, c_int, c_int
-	) void;
 
 	pub fn setDialogAtoms(self: *Gui, argv: []Atom) void {
-		iemgui_setdialogatoms(self, @intCast(argv.len), argv.ptr);
+		c.iemgui_setdialogatoms(@ptrCast(self), @intCast(argv.len), @ptrCast(argv.ptr));
 	}
-	extern fn iemgui_setdialogatoms(*Gui, c_uint, [*]Atom) void;
 
-	/// Returns a sendable/receivable bit mask.
-	pub fn dialog(self: *Gui, srl: [*]*Symbol, av: []const Atom) u2 {
-		return @intCast(iemgui_dialog(self, srl, @intCast(av.len), av.ptr));
-	}
-	extern fn iemgui_dialog(*Gui, [*]*Symbol, c_uint, [*]const Atom) c_uint;
+	pub const DialogBitMask = packed struct(u2) {
+		sendable: bool,
+		receivable: bool,
+	};
 
-	pub fn init(cls: *Class) error{GuiInit}!*Gui {
-		return iemgui_new(cls) orelse error.GuiInit;
+	pub fn dialog(self: *Gui, srl: [*]*Symbol, av: []const Atom) DialogBitMask {
+		return @bitCast(@as(u2, @intCast(c.iemgui_dialog(
+			@ptrCast(self), @ptrCast(srl), @intCast(av.len), @ptrCast(av.ptr)))));
 	}
-	extern fn iemgui_new(*Class) ?*Gui;
+
+	pub fn init(cls: *Class) error{GuiInitFail}!*Gui {
+		return if (c.iemgui_new(cls)) |gui| @ptrCast(gui) else error.GuiInitFail;
+	}
 };
 
-pub const displace = iemgui_displace;
-extern fn iemgui_displace(*GObj, *GList, dx: c_int, dy: c_int) void;
-
-pub fn setSelected(obj: *GObj, list: *GList, selected: bool) void {
-	iemgui_select(obj, list, @intFromBool(selected));
+pub fn displace(gobj: *GObj, gl: *GList, dx: c_int, dy: c_int) void {
+	c.iemgui_displace(@ptrCast(gobj), @ptrCast(gl), dx, dy);
 }
+
+pub fn setSelected(gobj: *GObj, gl: *GList, selected: bool) void {
+	c.iemgui_select(@ptrCast(gobj), @ptrCast(gl), @intFromBool(selected));
+}
+
 /// use `setSelected` when directly calling within zig
-pub const select = iemgui_select;
-extern fn iemgui_select(*GObj, *GList, c_int) void;
-
-pub const delete = iemgui_delete;
-extern fn iemgui_delete(*GObj, *GList) void;
-
-pub fn setVisible(obj: *GObj, list: *GList, visible: bool) void {
-	iemgui_vis(obj, list, @intFromBool(visible));
+pub fn select(gobj: *GObj, gl: *GList, selected: c_int) callconv(.c) void {
+	c.iemgui_select(@ptrCast(gobj), @ptrCast(gl), selected);
 }
+
+pub fn delete(gobj: *GObj, gl: *GList) void {
+	c.iemgui_delete(@ptrCast(gobj), @ptrCast(gl));
+}
+
+pub fn setVisible(gobj: *GObj, list: *GList, visible: bool) void {
+	c.iemgui_vis(@ptrCast(gobj), @ptrCast(list), @intFromBool(visible));
+}
+
 /// use `setVisible` when directly calling within zig
-pub const vis = iemgui_vis;
-extern fn iemgui_vis(*GObj, *GList, c_int) void;
+pub fn vis(gobj: *GObj, list: *GList, visible: c_int) callconv(.c) void {
+	c.iemgui_vis(@ptrCast(gobj), @ptrCast(list), visible);
+}

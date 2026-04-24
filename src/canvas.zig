@@ -1,3 +1,4 @@
+const c = @import("cdef");
 const m = @import("pd.zig");
 
 const Atom = m.Atom;
@@ -42,49 +43,50 @@ pub const RText = opaque {
 		var y1: c_int = undefined;
 		var x2: c_int = undefined;
 		var y2: c_int = undefined;
-		rtext_getrect(self, &x1, &y1, &x2, &y2);
+		c.rtext_getrect(@ptrCast(self), &x1, &y1, &x2, &y2);
 		return .{
 			.p1 = .{ x1, y1 },
 			.p2 = .{ x2, y2 },
 		};
 	}
-	extern fn rtext_getrect(*RText, *c_int, *c_int, *c_int, *c_int) void;
 
-	pub const displace = rtext_displace;
-	extern fn rtext_displace(*RText, dx: c_int, dy: c_int) void;
+	pub fn displace(self: *RText, dx: c_int, dy: c_int) void {
+		c.rtext_displace(@ptrCast(self), dx, dy);
+	}
 
 	pub fn select(self: *RText, state: bool) void {
-		rtext_select(self, @intFromBool(state));
+		c.rtext_select(@ptrCast(self), @intFromBool(state));
 	}
-	extern fn rtext_select(*RText, c_int) void;
 
 	pub fn activate(self: *RText, state: bool) void {
-		rtext_activate(self, @intFromBool(state));
+		c.rtext_activate(@ptrCast(self), @intFromBool(state));
 	}
-	extern fn rtext_activate(*RText, c_int) void;
 
-	pub const getTag = rtext_gettag;
-	extern fn rtext_gettag(*RText) [*:0]const u8;
+	pub fn getTag(self: *RText) [*:0]const u8 {
+		return c.rtext_gettag(@ptrCast(self));
+	}
 
-	pub const draw = rtext_draw;
-	extern fn rtext_draw(*RText) void;
+	pub fn draw(self: *RText) void {
+		c.rtext_draw(@ptrCast(self));
+	}
 
-	pub const erase = rtext_erase;
-	extern fn rtext_erase(*RText) void;
+	pub fn erase(self: *RText) void {
+		c.rtext_erase(@ptrCast(self));
+	}
 };
 
 const GuiConnect = opaque {};
 
 pub const UpdateHeader = extern struct {
-	next: ?*UpdateHeader,
-	flags: Flags,
+	next: ?*UpdateHeader = null,
+	flags: Flags = .{},
 
 	pub const Flags = packed struct(c_uint) {
 		/// true if array, false if glist
-		array: bool,
+		array: bool = false,
 		/// true if we're queued
-		queued: bool,
-		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 2),
+		queued: bool = false,
+		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 2) = 0,
 	};
 };
 
@@ -171,96 +173,96 @@ pub const Editor = extern struct {
 /// where to put ticks on x or y axes
 const Tick = extern struct {
 	/// one point to draw a big tick at
-	point: Float,
+	point: Float = 0,
 	/// x or y increment per little tick
-	inc: Float,
+	inc: Float = 0,
 	/// little ticks per big; 0 if no ticks to draw
-	lperb: c_int,
+	lperb: c_int = 0,
 };
 
 pub const GList = extern struct {
 	/// header in case we're a glist
-	obj: Object,
+	obj: Object = .{},
 	/// the actual data
-	list: *GObj,
+	list: ?*GObj = null,
 	/// safe pointer handler
 	stub: *GStub,
 	/// incremented when pointers might be stale
 	valid: c_int,
-	/// parent glist, supercanvas, or 0 if none
-	owner: ?*GList,
+	/// parent glist, supercanvas, or null
+	owner: ?*GList = null,
 	/// width and height in pixels (on parent, if a graph)
-	pixsize: [2]c_uint,
+	pixsize: [2]c_uint = .{ 0, 0 },
 	/// bounding rectangle in our own coordinates (upper-left)
-	p1: [2]Float,
+	p1: [2]Float = .{ 0, 0 },
 	/// bounding rectangle in our own coordinates (lower-right)
-	p2: [2]Float,
+	p2: [2]Float = .{ 0, 0 },
 	/// screen coordinates when toplevel (upper-left)
-	screen1: [2]c_int,
+	screen1: [2]c_int = .{ 0, 0 },
 	/// screen coordinates when toplevel (lower-right)
-	screen2: [2]c_int,
+	screen2: [2]c_int = .{ 0, 0 },
 	/// origin for GOP rectangle
-	margin: [2]c_int,
+	margin: [2]c_int = .{ 0, 0 },
 	/// ticks marking X values
-	xtick: Tick,
+	xtick: Tick = .{},
 	/// number of X coordinate labels
-	nxlabels: c_uint,
+	nxlabels: c_uint = 0,
 	/// array to hold X coordinate labels
-	xlabel: [*]*Symbol,
+	xlabel: [*]*Symbol = &.{},
 	/// Y coordinate for X coordinate labels
-	xlabely: Float,
+	xlabely: Float = 0,
 	/// ticks marking Y values
-	ytick: Tick,
+	ytick: Tick = .{},
 	/// number of Y coordinate labels
-	nylabels: c_uint,
+	nylabels: c_uint = 0,
 	/// array to hold Y coordinate labels
-	ylabel: [*]*Symbol,
+	ylabel: [*]*Symbol = &.{},
 	/// X coordinate for Y coordinate labels
-	ylabelx: Float,
+	ylabelx: Float = 0,
 	/// editor structure when visible
-	editor: ?*Editor,
+	editor: ?*Editor = null,
 	/// symbol bound here
 	name: *Symbol,
 	/// nominal font size in points, e.g., 10
-	font: c_uint,
+	font: c_uint = 0,
 	/// link in list of toplevels
-	next: ?*GList,
+	next: ?*GList = null,
 	/// root canvases and abstractions only
-	env: *Environment,
-	flags: Flags,
+	env: ?*Environment = null,
+	flags: Flags = .{},
 	/// zoom factor (integer zoom-in only)
-	zoom: c_uint,
+	zoom: c_uint = 0,
 	/// private data
-	privatedata: *anyopaque,
+	privatedata: ?*anyopaque = null,
 
 	pub const Environment = opaque {};
 
 	pub const Flags = packed struct(c_uint) {
 		/// true if we own a window
-		havewindow: bool,
+		havewindow: bool = false,
 		/// true if, moreover, it's "mapped"
-		mapped: bool,
+		mapped: bool = false,
 		/// (root canvas only:) patch has changed
-		dirty: bool,
+		dirty: bool = false,
 		/// am now loading from file
-		loading: bool,
+		loading: bool = false,
 		/// make me visible after loading
-		willvis: bool,
+		willvis: bool = false,
 		/// edit mode
-		edit: bool,
+		edit: bool = false,
 		/// we're inside glist_delete -- hack!
-		isdeleting: bool,
+		isdeleting: bool = false,
 		/// draw rectangle for graph-on-parent
-		goprect: bool,
+		goprect: bool = false,
 		/// show as graph on parent
-		isgraph: bool,
+		isgraph: bool = false,
 		/// hide object-name + args when doing graph on parent
-		hidetext: bool,
+		hidetext: bool = false,
 		/// private flag used in x_scalar.c
-		private: bool,
+		private: bool = false,
 		/// exists as part of a clone object
-		isclone: bool,
-		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 12),
+		isclone: bool = false,
+		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 12) = 0,
 	};
 
 	pub const MotionFn = fn (*anyopaque, Float, Float, Float) callconv(.c) void;
@@ -297,90 +299,113 @@ pub const GList = extern struct {
 		gopcolor: c_uint,
 	};
 
-	pub const init = glist_init;
-	extern fn glist_init(*GList) void;
+	pub fn init(self: *GList) void {
+		c.glist_init(@ptrCast(self));
+	}
 
-	pub const add = glist_add;
-	extern fn glist_add(*GList, *GObj) void;
+	pub fn add(self: *GList, g: *GObj) void {
+		c.glist_add(@ptrCast(self), @ptrCast(g));
+	}
 
-	pub const clear = glist_clear;
-	extern fn glist_clear(*GList) void;
+	pub fn clear(self: *GList) void {
+		c.glist_clear(@ptrCast(self));
+	}
 
-	pub const getCanvas = glist_getcanvas;
-	extern fn glist_getcanvas(*GList) *GList;
+	pub fn getCanvas(self: *GList) *GList {
+		return @ptrCast(@alignCast(c.glist_getcanvas(@ptrCast(self)).?));
+	}
 
 	pub fn isSelected(self: *GList, g: *GObj) bool {
-		return (glist_isselected(self, g) != 0);
+		return (c.glist_isselected(@ptrCast(self), @ptrCast(g)) != 0);
 	}
-	extern fn glist_isselected(*GList, *GObj) c_uint;
 
-	pub const select = glist_select;
-	extern fn glist_select(*GList, *GObj) void;
+	pub fn select(self: *GList, g: *GObj) void {
+		c.glist_select(@ptrCast(self), @ptrCast(g));
+	}
 
-	pub const deselect = glist_deselect;
-	extern fn glist_deselect(*GList, *GObj) void;
+	pub fn deselect(self: *GList, g: *GObj) void {
+		c.glist_deselect(@ptrCast(self), @ptrCast(g));
+	}
 
-	pub const noSelect = glist_noselect;
-	extern fn glist_noselect(*GList) void;
+	pub fn noSelect(self: *GList) void {
+		c.glist_noselect(@ptrCast(self));
+	}
 
-	pub const selectAll = glist_selectall;
-	extern fn glist_selectall(*GList) void;
+	pub fn selectAll(self: *GList) void {
+		c.glist_selectall(@ptrCast(self));
+	}
 
-	pub const delete = glist_delete;
-	extern fn glist_delete(*GList, *GObj) void;
+	pub fn delete(self: *GList, g: *GObj) void {
+		c.glist_delete(@ptrCast(self), @ptrCast(g));
+	}
 
 	/// Remake text buffer
-	pub const retext = glist_retext;
-	extern fn glist_retext(*GList, *Object) void;
+	pub fn retext(self: *GList, obj: *Object) void {
+		c.glist_retext(@ptrCast(self), @ptrCast(obj));
+	}
 
-	pub const grab = glist_grab;
-	extern fn glist_grab(
-		*GList, *GObj,
-		?*const MotionFn, ?*const KeyFn,
+	pub fn grab(
+		self: *GList, g: *GObj,
+		motion: ?*const MotionFn, key: ?*const KeyFn,
 		xpos: c_int, ypos: c_int,
-	) void;
+	) void {
+		c.glist_grab(
+			@ptrCast(self), @ptrCast(g),
+			@ptrCast(motion), @ptrCast(key),
+			xpos, ypos,
+		);
+	}
 
 	pub fn isVisible(self: *GList) bool {
-		return (glist_isvisible(self) != 0);
+		return (c.glist_isvisible(@ptrCast(self)) != 0);
 	}
-	extern fn glist_isvisible(*GList) c_uint;
 
 	pub fn isTopLevel(self: *GList) bool {
-		return (glist_istoplevel(self) != 0);
+		return (c.glist_istoplevel(@ptrCast(self)) != 0);
 	}
-	extern fn glist_istoplevel(*GList) c_uint;
 
 	/// Find the graph most recently added to this glist.
 	/// If none exists, return null.
-	pub const findGraph = glist_findgraph;
-	extern fn glist_findgraph(*GList) ?*GList;
+	pub fn findGraph(self: *GList) ?*GList {
+		return @ptrCast(c.glist_findgraph(@ptrCast(self)));
+	}
 
-	pub const getFont = glist_getfont;
-	extern fn glist_getfont(*GList) c_uint;
+	/// Nominal font size in points, e.g., 10
+	pub fn getFont(self: *GList) c_uint {
+		return @intCast(c.glist_getfont(@ptrCast(self)));
+	}
 
-	pub const fontWidth = glist_fontwidth;
-	extern fn glist_fontwidth(*GList) c_uint;
+	pub fn fontWidth(self: *GList) c_uint {
+		return @intCast(c.glist_fontwidth(@ptrCast(self)));
+	}
 
-	pub const fontHeight = glist_fontheight;
-	extern fn glist_fontheight(*GList) c_uint;
+	pub fn fontHeight(self: *GList) c_uint {
+		return @intCast(c.glist_fontheight(@ptrCast(self)));
+	}
 
-	pub const getZoom = glist_getzoom;
-	extern fn glist_getzoom(*GList) c_uint;
+	pub fn getZoom(self: *GList) c_uint {
+		return @intCast(c.glist_getzoom(@ptrCast(self)));
+	}
 
-	pub const sort = glist_sort;
-	extern fn glist_sort(*GList) void;
+	pub fn sort(self: *GList) void {
+		c.glist_sort(@ptrCast(self));
+	}
 
-	pub const read = glist_read;
-	extern fn glist_read(*GList, filename: *Symbol, format: *Symbol) void;
+	pub fn read(self: *GList, filename: *Symbol, format: *Symbol) void {
+		c.glist_read(@ptrCast(self), @ptrCast(filename), @ptrCast(format));
+	}
 
-	pub const mergeFile = glist_mergefile;
-	extern fn glist_mergefile(*GList, filename: *Symbol, format: *Symbol) void;
+	pub fn mergeFile(self: *GList, filename: *Symbol, format: *Symbol) void {
+		c.glist_mergefile(@ptrCast(self), @ptrCast(filename), @ptrCast(format));
+	}
 
-	pub const pixelsToX = glist_pixelstox;
-	extern fn glist_pixelstox(*GList, xpix: Float) Float;
+	pub fn pixelsToX(self: *GList, xpix: Float) Float {
+		return c.glist_pixelstox(@ptrCast(self), xpix);
+	}
 
-	pub const pixelsToY = glist_pixelstoy;
-	extern fn glist_pixelstoy(*GList, ypix: Float) Float;
+	pub fn pixelsToY(self: *GList, ypix: Float) Float {
+		return c.glist_pixelstoy(@ptrCast(self), ypix);
+	}
 
 	/// convert a coordinate value to a pixel location in window
 	pub fn toPixels(self: *const GList, val: @Vector(2, Float)) @Vector(2, Float) {
@@ -412,20 +437,22 @@ pub const GList = extern struct {
 		}
 	}
 
-	pub const dpixToDx = glist_dpixtodx;
-	extern fn glist_dpixtodx(*GList, dxpix: Float) Float;
+	pub fn dpixToDx(self: *GList, dxpix: Float) Float {
+		return c.glist_dpixtodx(@ptrCast(self), dxpix);
+	}
 
-	pub const dpixToDy = glist_dpixtody;
-	extern fn glist_dpixtody(*GList, dypix: Float) Float;
+	pub fn dpixToDy(self: *GList, dypix: Float) Float {
+		return c.glist_dpixtody(@ptrCast(self), dypix);
+	}
 
-	pub const nextXY = glist_getnextxy;
-	extern fn glist_getnextxy(*GList, xval: *c_int, yval: *c_int) void;
+	pub fn nextXY(self: *GList, xval: *c_int, yval: *c_int) void {
+		c.glist_getnextxy(@ptrCast(self), xval, yval);
+	}
 
 	/// Call `glist_addglist()` from a Pd message.
 	pub fn gList(self: *GList, s: *Symbol, av: []Atom) void {
-		glist_glist(self, s, @intCast(av.len), av.ptr);
+		c.glist_glist(@ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
 	}
-	extern fn glist_glist(*GList, *Symbol, c_uint, [*]Atom) void;
 
 	/// Make a new glist and add it to this glist.
 	/// It will appear as a "graph", not a text object.
@@ -433,76 +460,80 @@ pub const GList = extern struct {
 		self: *GList, sym: *Symbol,
 		x1: Float, y1: Float, x2: Float, y2: Float,
 		px1: Float, py1: Float, px2: Float, py2: Float,
-	) !*GList {
-		return glist_addglist(self, sym, x1, y1, x2, y2, px1, py1, px2, py2)
-			orelse error.GListAddGList;
+	) error{AddGListFail}!*GList {
+		return if (c.glist_addglist(
+			@ptrCast(self), @ptrCast(sym),
+			x1, y1, x2, y2,
+			px1, py1, px2, py2,
+		)) |gl| @ptrCast(gl) else error.AddGListFail;
 	}
-	extern fn glist_addglist(
-		*GList, *Symbol, Float, Float, Float, Float, Float, Float, Float, Float) ?*GList;
 
-	pub const arrayDialog = glist_arraydialog;
-	extern fn glist_arraydialog(
-		*GList, name: *Symbol, size: Float, saveit: Float, newgraph: Float) void;
+	pub fn arrayDialog(
+		self: *GList, name: *Symbol,
+		size: Float, saveit: Float, newgraph: Float,
+	) void {
+		c.glist_arraydialog(@ptrCast(self), @ptrCast(name), size, saveit, newgraph);
+	}
 
 	/// Write all "scalars" in a glist to a binbuf.
-	pub fn writeToBinbuf(self: *GList, wholething: bool) !*BinBuf {
-		return glist_writetobinbuf(self, @intFromBool(wholething))
-			orelse error.GListWriteToBinBuf;
+	pub fn writeToBinbuf(self: *GList, wholething: bool) error{WriteToBinBufFail}!*BinBuf {
+		return if (c.glist_writetobinbuf(@ptrCast(self), @intFromBool(wholething))) |bb|
+			@ptrCast(bb)
+		else error.WriteToBinBufFail;
 	}
-	extern fn glist_writetobinbuf(*GList, c_uint) ?*BinBuf;
 
 	pub fn isGraph(self: *GList) bool {
-		return (glist_isgraph(self) != 0);
+		return (c.glist_isgraph(@ptrCast(self)) != 0);
 	}
-	extern fn glist_isgraph(*GList) c_uint;
 
-	pub const redraw = glist_redraw;
-	extern fn glist_redraw(*GList) void;
+	pub fn redraw(self: *GList) void {
+		c.glist_redraw(@ptrCast(self));
+	}
 
 	/// Draw inlets and outlets for a text object or for a graph.
 	pub fn drawIoFor(
-		self: *GList,
-		ob: *Object,
+		self: *GList, ob: *Object,
 		first_time: bool,
 		tag: [*:0]const u8,
-		x1: c_int,
-		y1: c_int,
-		x2: c_int,
-		y2: c_int,
+		x1: c_int, y1: c_int,
+		x2: c_int, y2: c_int,
 	) void {
-		glist_drawiofor(self, ob, @intFromBool(first_time), tag, x1, y1, x2, y2);
+		c.glist_drawiofor(
+			@ptrCast(self), @ptrCast(ob), @intFromBool(first_time), tag, x1, y1, x2, y2);
 	}
-	extern fn glist_drawiofor(
-		*GList, *Object, c_uint, [*:0]const u8, c_int, c_int, c_int, c_int) void;
 
 	pub fn eraseIoFor(self: *GList, ob: *Object, tag: [*:0]const u8) void {
-		glist_eraseiofor(self, ob, tag);
+		c.glist_eraseiofor(@ptrCast(self), @ptrCast(ob), tag);
 	}
-	extern fn glist_eraseiofor(*GList, *Object, [*:0]const u8) void;
 
-	pub const createEditor = canvas_create_editor;
-	extern fn canvas_create_editor(*GList) void;
+	pub fn createEditor(self: *GList) void {
+		c.canvas_create_editor(@ptrCast(self));
+	}
 
-	pub const destroyEditor = canvas_destroy_editor;
-	extern fn canvas_destroy_editor(*GList) void;
+	pub fn destroyEditor(self: *GList) void {
+		c.canvas_destroy_editor(@ptrCast(self));
+	}
 
-	pub const deleteLinesFor = canvas_deletelinesfor;
-	extern fn canvas_deletelinesfor(*GList, *Object) void;
+	pub fn deleteLinesFor(self: *GList, ob: *Object) void {
+		c.canvas_deletelinesfor(@ptrCast(self), @ptrCast(ob));
+	}
 
-	pub const makeFilename = canvas_makefilename;
-	extern fn canvas_makefilename(
-		*const GList, file: [*:0]const u8, result: [*:0]u8, resultsize: c_int) void;
+	pub fn makeFilename(self: *const GList, file: [*:0]const u8, buf: []u8) void {
+		c.canvas_makefilename(@ptrCast(self), file, buf.ptr, @intCast(buf.len));
+	}
 
-	pub const dir = canvas_getdir;
-	extern fn canvas_getdir(*const GList) *Symbol;
+	pub fn dir(self: *const GList) *Symbol {
+		return @ptrCast(c.canvas_getdir(@ptrCast(self)));
+	}
 
 	/// Read text from a "properties" window, called from a gfxstub set
 	/// up in `scalar_properties()`. We try to restore the object; if successful
 	/// we either copy the data from the new scalar to the old one in place
 	/// (if their templates match) or else delete the old scalar and put the new
 	/// thing in its place on the list.
-	pub const dataProperties = canvas_dataproperties;
-	extern fn canvas_dataproperties(*GList, *Scalar, *BinBuf) void;
+	pub fn dataProperties(self: *GList, sc: *Scalar, b: *BinBuf) void {
+		c.canvas_dataproperties(@ptrCast(self), @ptrCast(sc), @ptrCast(b));
+	}
 
 	/// Utility function to read a file, looking first down the canvas's search
 	/// path (set with "declare" objects in the patch and recursively in calling
@@ -524,62 +555,61 @@ pub const GList = extern struct {
 		nameresult: *[*:0]u8,
 		size: c_uint,
 		bin: bool,
-	) error{GListOpen}!c_uint {
-		const fd = canvas_open(
-			self, name, ext, dirresult, nameresult, size, @intFromBool(bin));
-		return if (fd < 0)
-			error.GListOpen
-		else @intCast(fd);
+	) error{GListOpenFail}!c_uint {
+		const fd = c.canvas_open(
+			@ptrCast(self), name, ext, dirresult, nameresult, size, @intFromBool(bin));
+		return if (fd < 0) error.GListOpenFail else @intCast(fd);
 	}
-	extern fn canvas_open(?*const GList, [*:0]const u8, [*:0]const u8,
-		[*:0]u8, *[*:0]u8, c_uint, c_uint) c_int;
 
-	pub const sampleRate = canvas_getsr;
-	extern fn canvas_getsr(*GList) Float;
+	pub fn sampleRate(self: *GList) Float {
+		return c.canvas_getsr(@ptrCast(self));
+	}
 
-	pub const signalLength = canvas_getsignallength;
-	extern fn canvas_getsignallength(*GList) c_uint;
+	pub fn signalLength(self: *GList) c_uint {
+		return @intCast(c.canvas_getsignallength(@ptrCast(self)));
+	}
 
 	pub fn setArgs(av: []const Atom) void {
-		canvas_setargs(@intCast(av.len), av.ptr);
+		c.canvas_setargs(@intCast(av.len), @ptrCast(av.ptr));
 	}
-	extern fn canvas_setargs(c_uint, [*]const Atom) void;
 
 	pub fn args() []Atom {
-		var ac: c_uint = undefined;
-		var av: [*]Atom = undefined;
-		canvas_getargs(&ac, &av);
-		return av[0..ac];
+		var ac: c_int = undefined;
+		var av: [*]c.t_atom = undefined;
+		c.canvas_getargs(&ac, &av);
+		return @ptrCast(av[0..@intCast(ac)]);
 	}
-	extern fn canvas_getargs(*c_uint, *[*]Atom) void;
 
 	pub fn setUndoState(
 		self: *GList, x: *Pd, s: *Symbol,
 		undo: []const Atom, redo: []const Atom,
 	) void {
-		pd_undo_set_objectstate(self, x, s,
-			@intCast(undo.len), undo.ptr, @intCast(redo.len), redo.ptr);
+		c.pd_undo_set_objectstate(@ptrCast(self), @ptrCast(x), @ptrCast(s),
+			@intCast(undo.len), @ptrCast(@constCast(undo.ptr)),
+			@intCast(redo.len), @ptrCast(@constCast(redo.ptr)),
+		);
 	}
-	extern fn pd_undo_set_objectstate(
-		*GList, *Pd, *Symbol, c_uint, [*]const Atom, c_uint, [*]const Atom) void;
 
-	pub const getCurrent = canvas_getcurrent;
-	extern fn canvas_getcurrent() ?*GList;
+	pub fn getCurrent() ?*GList {
+		return @ptrCast(@alignCast(c.canvas_getcurrent()));
+	}
 
-	pub const getEnv = canvas_getenv;
-	extern fn canvas_getenv(*GList) *Environment;
+	pub fn getEnv(self: *GList) *Environment {
+		return c.canvas_getenv(@ptrCast(self));
+	}
 
-	pub const realizeDollar = canvas_realizedollar;
-	extern fn canvas_realizedollar(*GList, *Symbol) *Symbol;
+	pub fn realizeDollar(self: *GList, s: *Symbol) *Symbol {
+		return @ptrCast(c.canvas_realizedollar(@ptrCast(self), @ptrCast(s)));
+	}
 
 	/// Mark a glist dirty or clean.
 	pub fn setDirty(self: *GList, state: bool) void {
-		canvas_dirty(self, @floatFromInt(@intFromBool(state)));
+		c.canvas_dirty(@ptrCast(self), @floatFromInt(@intFromBool(state)));
 	}
-	extern fn canvas_dirty(*GList, Float) void;
 
-	pub const fixLinesFor = canvas_fixlinesfor;
-	extern fn canvas_fixlinesfor(*GList, *Object) void;
+	pub fn fixLinesFor(self: *GList, ob: *Object) void {
+		c.canvas_fixlinesfor(@ptrCast(self), @ptrCast(ob));
+	}
 
 	/// Find the RText that goes with a text item. Return `null` if the
 	/// text item is invisible, either because the glist itself is, or because
@@ -596,106 +626,102 @@ pub const GList = extern struct {
 		/// in which case we can't just go call `shouldvis` back from here.
 		really: bool,
 	) ?*RText {
-		return glist_getrtext(self, who, @intFromBool(really));
+		return @ptrCast(c.glist_getrtext(
+			@ptrCast(self), @ptrCast(who), @intFromBool(really),
+		));
 	}
-	extern fn glist_getrtext(*GList, *Object, c_int) ?*RText;
 };
 
 
 // ----------------------------------- GObj ------------------------------------
 // -----------------------------------------------------------------------------
 pub const GObj = extern struct {
-	pd: Pd,
+	pd: Pd = .{},
 	next: ?*GObj = null,
 
-	pub const getRect = gobj_getrect;
-	extern fn gobj_getrect(
+	pub fn getRect(
 		self: *GObj, owner: *GList,
-		x1: *c_int, y1: *c_int, x2: *c_int, y2: *c_int,
-	) void;
+		x1: *c_int, y1: *c_int,
+		x2: *c_int, y2: *c_int,
+	) void {
+		c.gobj_getrect(@ptrCast(self), @ptrCast(owner), x1, y1, x2, y2);
+	}
 
-	pub const displace = gobj_displace;
-	extern fn gobj_displace(self: *GObj, owner: *GList, dx: c_int, dy: c_int) void;
+	pub fn displace(self: *GObj, owner: *GList, dx: c_int, dy: c_int) void {
+		c.gobj_displace(@ptrCast(self), @ptrCast(owner), dx, dy);
+	}
 
 	pub fn select(self: *GObj, owner: *GList, state: bool) void {
-		gobj_select(self, owner, @intFromBool(state));
+		c.gobj_select(@ptrCast(self), @ptrCast(owner), @intFromBool(state));
 	}
-	extern fn gobj_select(*GObj, *GList, c_uint) void;
 
 	pub fn activate(self: *GObj, owner: *GList, state: bool) void {
-		gobj_activate(self, owner, @intFromBool(state));
+		c.gobj_activate(@ptrCast(self), @ptrCast(owner), @intFromBool(state));
 	}
-	extern fn gobj_activate(*GObj, *GList, c_uint) void;
 
-	pub const delete = gobj_delete;
-	extern fn gobj_delete(self: *GObj, owner: *GList) void;
+	pub fn delete(self: *GObj, owner: *GList) void {
+		c.gobj_delete(@ptrCast(self), @ptrCast(owner));
+	}
 
 	pub fn vis(self: *GObj, owner: *GList, state: bool) void {
-		gobj_vis(self, owner, @intFromBool(state));
+		c.gobj_vis(@ptrCast(self), @ptrCast(owner), @intFromBool(state));
 	}
-	extern fn gobj_vis(*GObj, *GList, c_uint) void;
 
 	pub fn click(
 		self: *GObj, glist: *GList,
 		xpix: c_int, ypix: c_int,
 		shift: bool, alt: bool, dblclk: bool, doit: bool,
 	) bool {
-		return gobj_click(
-			self, glist,
+		return c.gobj_click(
+			@ptrCast(self), @ptrCast(glist),
 			xpix, ypix,
 			@intFromBool(shift), @intFromBool(alt),
 			@intFromBool(dblclk), @intFromBool(doit),
 		);
 	}
-	extern fn gobj_click(
-		*GObj, *GList,
-		c_int, c_int,
-		c_uint, c_uint, c_uint, c_uint,
-	) c_int;
 
-	pub const save = gobj_save;
-	extern fn gobj_save(self: *GObj, b: *BinBuf) void;
+	pub fn save(self: *GObj, b: *BinBuf) void {
+		c.gobj_save(@ptrCast(self), @ptrCast(b));
+	}
 
 	pub fn shouldVis(self: *GObj, glist: *GList) bool {
-		return (gobj_shouldvis(self, glist) != 0);
+		return (c.gobj_shouldvis(@ptrCast(self), @ptrCast(glist)) != 0);
 	}
-	extern fn gobj_shouldvis(*GObj, *GList) c_uint;
 };
 
 
 // ------------------------------- LineTraverser -------------------------------
 // -----------------------------------------------------------------------------
 pub const LineTraverser = extern struct {
-	x: *GList,
-	ob: *Object,
-	nout: c_int,
-	outno: c_int,
-	ob2: *Object,
-	outlet: ?*Outlet,
-	inlet: ?*Inlet,
-	nin: c_int,
-	inno: c_int,
-	p11: [2]c_int,
-	p12: [2]c_int,
-	p21: [2]c_int,
-	p22: [2]c_int,
-	l1: [2]c_int,
-	l2: [2]c_int,
-	nextoc: ?*OutConnect,
-	nextoutno: c_int,
+	gl: *GList,
+	ob: ?*Object = null,
+	nout: c_uint = 0,
+	outno: c_int = 0,
+	ob2: *Object = undefined,
+	outlet: ?*Outlet = null,
+	inlet: ?*Inlet = null,
+	nin: c_int = 0,
+	inno: c_int = 0,
+	p11: [2]c_int = .{ 0, 0 },
+	p12: [2]c_int = .{ 0, 0 },
+	p21: [2]c_int = .{ 0, 0 },
+	p22: [2]c_int = .{ 0, 0 },
+	l1: [2]c_int = .{ 0, 0 },
+	l2: [2]c_int = .{ 0, 0 },
+	nextoc: ?*OutConnect = null,
+	nextoutno: c_int = 0,
 
-	pub fn init(x: *GList) LineTraverser {
-		var t: LineTraverser = undefined;
-		linetraverser_start(&t, x);
-		return t;
+	pub fn init(gl: *GList) LineTraverser {
+		return .{ .gl = gl };
 	}
-	extern fn linetraverser_start(t: *LineTraverser, x: *GList) void;
 
-	pub const next = linetraverser_next;
-	extern fn linetraverser_next(t: *LineTraverser) ?*OutConnect;
+	pub fn next(self: *LineTraverser) ?*OutConnect {
+		return @ptrCast(c.linetraverser_next(@ptrCast(self)));
+	}
 
-	pub const skipObject = linetraverser_skipobject;
-	extern fn linetraverser_skipobject(t: *LineTraverser) void;
+	pub fn skipObject(self: *LineTraverser) void {
+		c.linetraverser_skipobject(@ptrCast(self));
+	}
 };
 
 

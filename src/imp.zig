@@ -1,4 +1,5 @@
 const std = @import("std");
+const c = @import("cdef");
 const m = @import("pd.zig");
 const cnv = @import("canvas.zig");
 
@@ -8,11 +9,9 @@ const Pd = m.Pd;
 const GObj = m.GObj;
 const GPointer = m.GPointer;
 const BinBuf = m.BinBuf;
-
 const NewMethod = m.NewMethod;
 const Method = m.Method;
 const GotFn = m.GotFn;
-
 const Atom = m.Atom;
 const Float = m.Float;
 const Symbol = m.Symbol;
@@ -131,7 +130,7 @@ pub const Class = extern struct {
 		/// don't promote the main (left) inlet to signals
 		no_promote_left: bool = false,
 
-		fn toInt(self: Options) c_uint {
+		fn toInt(self: Options) c_int {
 			return @intFromBool(self.bare)
 				| (@as(u2, @intFromBool(self.gobj)) << 1)
 				| (@as(u2, @intFromBool(self.patchable)) * 3)
@@ -145,76 +144,94 @@ pub const Class = extern struct {
 	pub const pd = m.Pd.init;
 	pub const gui = m.iem.Gui.init;
 
-	pub const deinit = class_free;
-	extern fn class_free(*Class) void;
+	pub fn deinit(self: *Class) void {
+		c.class_free(@ptrCast(self));
+	}
 
-	pub const addBang = class_addbang;
-	extern fn class_addbang(*Class, *const Method) void;
+	pub fn addBang(self: *Class, func: *const Method) void {
+		c.class_addbang(@ptrCast(self), func);
+	}
 
-	pub const addPointer = class_addpointer;
-	extern fn class_addpointer(*Class, *const Method) void;
+	pub fn addPointer(self: *Class, func: *const Method) void {
+		c.class_addpointer(@ptrCast(self), func);
+	}
 
-	pub const addFloat = class_doaddfloat;
-	extern fn class_doaddfloat(*Class, *const Method) void;
+	pub fn addFloat(self: *Class, func: *const Method) void {
+		c.class_doaddfloat(@ptrCast(self), func);
+	}
 
-	pub const addSymbol = class_addsymbol;
-	extern fn class_addsymbol(*Class, *const Method) void;
+	pub fn addSymbol(self: *Class, func: *const Method) void {
+		c.class_addsymbol(@ptrCast(self), func);
+	}
 
-	pub const addList = class_addlist;
-	extern fn class_addlist(*Class, *const Method) void;
+	pub fn addList(self: *Class, func: *const Method) void {
+		c.class_addlist(@ptrCast(self), func);
+	}
 
-	pub const addAnything = class_addanything;
-	extern fn class_addanything(*Class, *const Method) void;
+	pub fn addAnything(self: *Class, func: *const Method) void {
+		c.class_addanything(@ptrCast(self), func);
+	}
 
-	pub const setHelpSymbol = class_sethelpsymbol;
-	extern fn class_sethelpsymbol(*Class, *Symbol) void;
+	pub fn setHelpSymbol(self: *Class, sym: *Symbol) void {
+		c.class_sethelpsymbol(@ptrCast(self), @ptrCast(sym));
+	}
 
-	pub const setWidget = class_setwidget;
-	extern fn class_setwidget(*Class, *const cnv.WidgetBehavior) void;
+	pub fn setWidget(self: *Class, wb: *const cnv.WidgetBehavior) void {
+		c.class_setwidget(@ptrCast(self), @ptrCast(wb));
+	}
 
-	pub const setParentWidget = class_setparentwidget;
-	extern fn class_setparentwidget(*Class, *const cnv.parent.WidgetBehavior) void;
+	pub fn setParentWidget(self: *Class, pwb: *const cnv.parent.WidgetBehavior) void {
+		c.class_setparentwidget(@ptrCast(self), @ptrCast(pwb));
+	}
 
-	pub const getName = class_getname;
-	extern fn class_getname(*const Class) [*:0]const u8;
+	pub fn getName(self: *const Class) [*:0]const u8 {
+		return c.class_getname(@ptrCast(self));
+	}
 
-	pub const getHelpName = class_gethelpname;
-	extern fn class_gethelpname(*const Class) [*:0]const u8;
+	pub fn getHelpName(self: *const Class) [*:0]const u8 {
+		return c.class_gethelpname(@ptrCast(self));
+	}
 
-	pub const getHelpDir = class_gethelpdir;
-	extern fn class_gethelpdir(*const Class) [*:0]const u8;
+	pub fn getHelpDir(self: *const Class) [*:0]const u8 {
+		return c.class_gethelpdir(@ptrCast(self));
+	}
 
-	pub const setDrawCommand = class_setdrawcommand;
-	extern fn class_setdrawcommand(*Class) void;
+	pub fn setDrawCommand(self: *Class) void {
+		c.class_setdrawcommand(@ptrCast(self));
+	}
 
-	pub const doMainSignalIn = class_domainsignalin;
-	extern fn class_domainsignalin(*Class, onset: c_uint) void;
+	pub fn doMainSignalIn(self: *Class, onset: usize) void {
+		c.class_domainsignalin(@ptrCast(self), @intCast(onset));
+	}
 
-	pub const setSaveFn = class_setsavefn;
-	extern fn class_setsavefn(*Class, ?*const SaveFn) void;
+	pub fn setSaveFn(self: *Class, savefn: ?*const SaveFn) void {
+		c.class_setsavefn(@ptrCast(self), @ptrCast(savefn));
+	}
 
-	pub const saveFn = class_getsavefn;
-	extern fn class_getsavefn(*const Class) ?*const SaveFn;
+	pub fn getSaveFn(self: *const Class) ?*const SaveFn {
+		return @ptrCast(c.class_getsavefn(@ptrCast(self)));
+	}
 
 	/// Set a function to start the properties dialog
-	pub const setPropertiesFn = class_setpropertiesfn;
-	extern fn class_setpropertiesfn(*Class, ?*const PropertiesFn) void;
+	pub fn setPropertiesFn(self: *Class, propfn: ?*const PropertiesFn) void {
+		c.class_setpropertiesfn(@ptrCast(self), @ptrCast(propfn));
+	}
 
-	pub const propertiesFn = class_getpropertiesfn;
-	extern fn class_getpropertiesfn(*const Class) ?*const PropertiesFn;
+	pub fn getPropertiesFn(self: *const Class) ?*const PropertiesFn {
+		return @ptrCast(c.class_getpropertiesfn(@ptrCast(self)));
+	}
 
-	pub const setFreeFn = class_setfreefn;
-	extern fn class_setfreefn(*Class, ?*const FreeFn) void;
+	pub fn setFreeFn(self: *Class, freefn: ?*const FreeFn) void {
+		c.class_setfreefn(@ptrCast(self), @ptrCast(freefn));
+	}
 
 	pub fn isDrawCommand(self: *const Class) bool {
-		return (class_isdrawcommand(self) != 0);
+		return (c.class_isdrawcommand(@ptrCast(self)) != 0);
 	}
-	extern fn class_isdrawcommand(*const Class) c_uint;
 
 	pub fn find(self: *const Class, sym: *Symbol) ?*Pd {
-		return pd_findbyclass(sym, self);
+		return @ptrCast(c.pd_findbyclass(@ptrCast(sym), @ptrCast(self)));
 	}
-	extern fn pd_findbyclass(*Symbol, *const Class) ?*Pd;
 
 	pub fn addMethod(
 		self: *Class,
@@ -222,9 +239,10 @@ pub const Class = extern struct {
 		sym: *Symbol,
 		comptime args: []const Atom.Type,
 	) void {
-		@call(.auto, pd_class_addmethod, .{ self, meth, sym } ++ Atom.Type.tuple(args));
+		const cls: *c.struct__class = @ptrCast(self);
+		const sm: *c.t_symbol = @ptrCast(sym);
+		@call(.auto, c.pd_class_addmethod, .{ cls, meth, sm } ++ Atom.Type.tuple(args));
 	}
-	extern fn pd_class_addmethod(*Class, *const Method, *Symbol, c_uint, ...) void;
 
 	pub fn init(
 		T: type,
@@ -235,16 +253,13 @@ pub const Class = extern struct {
 		options: Options,
 	) error{ClassInit}!*Class {
 		// printStruct(T, name); // uncomment this to view struct field order
-		const sym: *Symbol = .gen(name.ptr);
+		const sym: *c.t_symbol = c.gensym(name.ptr);
 		const newm: ?*const NewMethod = @ptrCast(new_method);
 		const freem: ?*const Method = @ptrCast(free_method);
-		return @call(.auto, pd_class_new,
+		return if (@call(.auto, c.pd_class_new,
 			.{ sym, newm, freem, @sizeOf(T), options.toInt() } ++ Atom.Type.tuple(args)
-		) orelse error.ClassInit;
+		)) |cls| @ptrCast(@alignCast(cls)) else error.ClassInit;
 	}
-	extern fn pd_class_new(
-		*Symbol, ?*const NewMethod, ?*const Method, usize, c_uint, c_uint, ...,
-	) ?*Class;
 
 	pub fn getFirst() error{SingleInstanceMode}!*Class {
 		return if (m.opt.multi) class_getfirst() else error.SingleInstanceMode;

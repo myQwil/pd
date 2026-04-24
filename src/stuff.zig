@@ -1,3 +1,4 @@
+const c = @import("cdef");
 const m = @import("pd.zig");
 
 const Float = m.Float;
@@ -9,27 +10,43 @@ pub extern var sys_printtostderr: c_uint;
 pub extern var sys_verbose: c_uint;
 
 pub fn haveTkProc() bool {
-	return (sys_havetkproc() != 0);
+	return (c.sys_havetkproc() != 0);
 }
-extern fn sys_havetkproc() c_uint;
 
 pub const NameList = extern struct {
 	next: ?*NameList,
 	string: [*:0]u8,
 
-	pub fn append(self: *NameList, s: [*:0]const u8, allow_dup: bool) *NameList {
-		namelist_append(self, s, @intFromBool(allow_dup));
+	/// Add a single item to a namelist. If `allow_dup` is true, duplicates
+	/// may be added; otherwise they're dropped.
+	pub fn append(
+		self: *NameList,
+		s: [*:0]const u8,
+		allow_dup: bool,
+	) error{OutOfMemory}!void {
+		if (c.namelist_append(@ptrCast(self), s, @intFromBool(allow_dup))) |nl| {
+			self.* = @as(*NameList, @ptrCast(nl)).*;
+		} else {
+			return error.OutOfMemory;
+		}
 	}
-	extern fn namelist_append(*NameList, [*:0]const u8, c_uint) *NameList;
 
-	pub const appendFiles = namelist_append_files;
-	extern fn namelist_append_files(*NameList, [*:0]const u8) *NameList;
+	/// Add a colon-separated list of names to a namelist
+	pub fn appendFiles(self: *NameList, s: [*:0]const u8) error{OutOfMemory}!void {
+		if (c.namelist_append_files(@ptrCast(self), s)) |nl| {
+			self.* = @as(*NameList, @ptrCast(nl)).*;
+		} else {
+			return error.OutOfMemory;
+		}
+	}
 
-	pub const deinit = namelist_free;
-	extern fn namelist_free(*NameList) void;
+	pub fn deinit(self: *NameList) void {
+		c.namelist_free(@ptrCast(self));
+	}
 
-	pub const get = namelist_get;
-	extern fn namelist_get(*NameList, c_uint) [*:0]const u8;
+	pub fn get(self: *NameList, idx: usize) ?[*:0]const u8 {
+		return c.namelist_get(@ptrCast(self), @intCast(idx));
+	}
 };
 
 pub const Instance = extern struct {

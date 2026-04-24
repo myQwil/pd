@@ -1,4 +1,6 @@
+const c = @import("cdef");
 pub const pd = @import("pd");
+
 const Atom = pd.Atom;
 const Instance = pd.Instance;
 
@@ -21,30 +23,24 @@ pub const Base = struct {
 		is_queued: bool,
 	) error{AlreadyInitialized, RingBufferFail, InitAudioFail}!Base {
 		if (is_queued) {
-			switch (libpd_queued_init()) {
+			switch (c.libpd_queued_init()) {
 				-1 => return error.AlreadyInitialized,
 				-2 => return error.RingBufferFail,
 				else => {},
 			}
-			errdefer libpd_queued_release();
-			libpd_set_queued_printhook(libpd_print_concatenator);
+			errdefer c.libpd_queued_release();
+			c.libpd_set_queued_printhook(c.libpd_print_concatenator);
 		} else {
-			if (libpd_init() != 0) {
+			if (c.libpd_init() != 0) {
 				return error.AlreadyInitialized;
 			}
-			libpd_set_printhook(libpd_print_concatenator);
+			c.libpd_set_printhook(c.libpd_print_concatenator);
 		}
-		if (libpd_init_audio(in_channels, out_channels, sample_rate) != 0) {
+		if (c.libpd_init_audio(in_channels, out_channels, sample_rate) != 0) {
 			return error.InitAudioFail;
 		}
 		return Base{ .queued = is_queued };
 	}
-	extern fn libpd_init() c_int;
-	extern fn libpd_queued_init() c_int;
-	extern fn libpd_set_printhook(?*const PrintHook) void;
-	extern fn libpd_set_queued_printhook(?*const PrintHook) void;
-	extern fn libpd_print_concatenator([*:0]const u8) void;
-	extern fn libpd_init_audio(c_uint, c_uint, c_uint) c_int;
 
 	test init {
 		try init(0, 2, 48000, false);
@@ -55,24 +51,21 @@ pub const Base = struct {
 	pub fn close(self: *const Base) void {
 		computeAudio(false);
 		if (self.queued) {
-			libpd_queued_release();
+			c.libpd_queued_release();
 		}
 	}
-	extern fn libpd_queued_release() void;
 };
 
 /// Clear the current pd search path.
-extern fn libpd_clear_search_path() void;
-pub const clearSearchPath = libpd_clear_search_path;
+pub const clearSearchPath = c.libpd_clear_search_path;
 
 /// Add a path to the libpd search paths.
 /// Relative paths are relative to the current working directory.
 ///
 /// Unlike desktop pd, *no* search paths are set by default (ie. extra)
 pub fn addToSearchPath(path: [*:0]const u8) void {
-	libpd_add_to_search_path(path);
+	c.libpd_add_to_search_path(path);
 }
-extern fn libpd_add_to_search_path([*:0]const u8) void;
 
 
 // ------------------------------ opening patches ------------------------------
@@ -86,21 +79,18 @@ pub const Patch = struct {
 
 	/// Open a patch by filename and parent dir path.
 	pub fn fromFile(name: [*:0]const u8, dir: [*:0]const u8) error{OpenFile}!Patch {
-		return if (libpd_openfile(name, dir)) |file| Patch{
+		return if (c.libpd_openfile(name, dir)) |file| Patch{
 			.handle = file,
-			.dollar_zero = libpd_getdollarzero(file),
+			.dollar_zero = @intCast(c.libpd_getdollarzero(file)),
 		} else error.OpenFile;
 	}
-	extern fn libpd_openfile([*:0]const u8, [*:0]const u8) ?*anyopaque;
-	extern fn libpd_getdollarzero(*anyopaque) c_uint;
 
 	/// Close a patch by patch handle pointer.
 	pub fn close(self: *const Patch) void {
 		if (self.handle) |h| {
-			libpd_closefile(h);
+			c.libpd_closefile(h);
 		}
 	}
-	extern fn libpd_closefile(*anyopaque) void;
 };
 
 
@@ -108,14 +98,15 @@ pub const Patch = struct {
 // -----------------------------------------------------------------------------
 
 pub fn computeAudio(state: bool) void {
-	_ = libpd_start_message(1);
+	_ = c.libpd_start_message(1);
 	addFloat(@floatFromInt(@intFromBool(state)));
-	_ = libpd_finish_message("pd", "dsp");
+	_ = c.libpd_finish_message("pd", "dsp");
 }
 
 /// Return pd's fixed block size: the number of sample frames per 1 pd tick.
-pub const blockSize = libpd_blocksize;
-extern fn libpd_blocksize() c_uint;
+pub fn blockSize() c_uint {
+	return @intCast(c.libpd_blocksize());
+}
 
 pub const ProcessError = error{ProcessError};
 
@@ -124,15 +115,14 @@ pub const ProcessError = error{ProcessError};
 /// Buffer sizes are based on # of ticks and channels where:
 ///     `size = ticks * libpd_blocksize() * (in/out)channels`.
 pub fn processFloat(
-	ticks: c_uint,
+	ticks: usize,
 	in_buffer: ?[*]const f32,
 	out_buffer: ?[*]f32,
 ) ProcessError!void {
-	if (libpd_process_float(ticks, in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_float(@intCast(ticks), in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
-extern fn libpd_process_float(c_uint, ?[*]const f32, ?[*]f32) c_int;
 
 /// Process interleaved short samples from inBuffer -> libpd -> outBuffer.
 ///
@@ -144,15 +134,14 @@ extern fn libpd_process_float(c_uint, ?[*]const f32, ?[*]f32) c_int;
 ///
 /// Note: for efficiency, does *not* clip input
 pub fn processShort(
-	ticks: c_uint,
-	in_buffer: ?[*]const i16,
-	out_buffer: ?[*]i16,
+	ticks: usize,
+	in_buffer: ?[*]const c_short,
+	out_buffer: ?[*]c_short,
 ) ProcessError!void {
-	if (libpd_process_short(ticks, in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_short(@intCast(ticks), in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
-extern fn libpd_process_short(c_uint, ?[*]const c_short, ?[*]c_short) c_int;
 
 /// Process interleaved double samples from inBuffer -> libpd -> outBuffer.
 ///
@@ -161,15 +150,14 @@ extern fn libpd_process_short(c_uint, ?[*]const c_short, ?[*]c_short) c_int;
 ///
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`
 pub fn processDouble(
-	ticks: c_uint,
+	ticks: usize,
 	in_buffer: ?[*]const f64,
 	out_buffer: ?[*]f64,
 ) ProcessError!void {
-	if (libpd_process_short(ticks, in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_double(@intCast(ticks), in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
-extern fn libpd_process_double(c_uint, ?[*]const f64, ?[*]f64) c_int;
 
 /// Process non-interleaved float samples from inBuffer -> libpd -> outBuffer.
 ///
@@ -181,11 +169,10 @@ pub fn processRawFloat(
 	in_buffer: ?[*]const f32,
 	out_buffer: ?[*]f32,
 ) ProcessError!void {
-	if (libpd_process_raw(in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_raw(in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
-extern fn libpd_process_raw(?[*]const f32, ?[*]f32) c_int;
 
 /// Process non-interleaved short samples from inBuffer -> libpd -> outBuffer.
 ///
@@ -199,14 +186,13 @@ extern fn libpd_process_raw(?[*]const f32, ?[*]f32) c_int;
 ///
 /// Note: for efficiency, does *not* clip input.
 pub fn processRawShort(
-	in_buffer: ?[*]const i16,
-	out_buffer: ?[*]i16,
+	in_buffer: ?[*]const c_short,
+	out_buffer: ?[*]c_short,
 ) ProcessError!void {
-	if (libpd_process_raw_short(in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_raw_short(in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
-extern fn libpd_process_raw_short(?[*]const i16, ?[*]i16) c_int;
 
 /// Process non-interleaved double samples from inBuffer -> libpd -> outBuffer.
 ///
@@ -220,56 +206,53 @@ pub fn processRawDouble(
 	in_buffer: ?[*]const f64,
 	out_buffer: ?[*]f64,
 ) ProcessError!void {
-	if (libpd_process_raw_double(in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_raw_double(in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
-extern fn libpd_process_raw_double(?[*]const f64, ?[*]f64) c_int;
 
 
 // ------------------------------- array access --------------------------------
 // -----------------------------------------------------------------------------
 
 /// Get the size of an array by name.
-pub fn arraySize(name: [*:0]const u8) error{ArrayNotFound}!c_uint {
-	const size = libpd_arraysize(name);
+pub fn arraySize(name: [*:0]const u8) error{ArrayNotFound}!usize {
+	const size = c.libpd_arraysize(name);
 	return if (size < 0) error.ArrayNotFound else @intCast(size);
 }
-extern fn libpd_arraysize([*:0]const u8) c_int;
 
 /// (re)size an array by name; sizes <= 0 are clipped to 1.
-pub fn resizeArray(name: [*:0]const u8, size: c_ulong) error{ArrayNotFound}!void {
-	if (libpd_resize_array(name, size) != 0) {
+pub fn resizeArray(name: [*:0]const u8, size: usize) error{ArrayNotFound}!void {
+	if (c.libpd_resize_array(name, @intCast(size)) != 0) {
 		return error.ArrayNotFound;
 	}
 }
-extern fn libpd_resize_array([*:0]const u8, c_ulong) c_int;
 
 pub const ArrayError = error{ArrayNotFound, ArrayOutOfBounds};
 
 /// Read values from named src array and write into `dest` starting at an offset.
 ///
 /// Note: performs no bounds checking on `dest`.
-pub fn readArray(dest: []f32, name: [*:0]const u8, offset: c_uint) ArrayError!void {
-	return switch (libpd_read_array(dest.ptr, name, offset, @intCast(dest.len))) {
+pub fn readArray(dest: []f32, name: [*:0]const u8, offset: usize) ArrayError!void {
+	const res = c.libpd_read_array(dest.ptr, name, @intCast(offset), @intCast(dest.len));
+	return switch (res) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
 	};
 }
-extern fn libpd_read_array([*]f32, [*:0]const u8, c_uint, c_uint) c_int;
 
 /// Read values from `src` and write into named dest array starting at an offset.
 ///
 /// Note: performs no bounds checking on `src`.
-pub fn writeArray(name: [*:0]const u8, offset: c_uint, src: []const f32) ArrayError!void {
-	return switch (libpd_write_array(name, offset, src.ptr, @intCast(src.len))) {
+pub fn writeArray(name: [*:0]const u8, offset: usize, src: []const f32) ArrayError!void {
+	const res = c.libpd_write_array(name, @intCast(offset), src.ptr, @intCast(src.len));
+	return switch (res) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
 	};
 }
-extern fn libpd_write_array([*:0]const u8, c_uint, [*]const f32, c_uint) c_int;
 
 /// Read values from named src array and write into `dest` starting at an offset.
 ///
@@ -278,15 +261,14 @@ extern fn libpd_write_array([*:0]const u8, c_uint, [*]const f32, c_uint) c_int;
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
 ///
 /// Double-precision variant of libpd_read_array().
-pub fn readArrayDouble(dest: []f64, name: [*:0]const u8, offset: c_uint) ArrayError!void {
-	const res = libpd_read_array_double(dest.ptr, name, offset, @intCast(dest.len));
+pub fn readArrayDouble(dest: []f64, name: [*:0]const u8, offset: usize) ArrayError!void {
+	const res = c.libpd_read_array_double(dest.ptr, name, offset, @intCast(dest.len));
 	return switch (res) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
 	};
 }
-extern fn libpd_read_array_double([*]f64, [*:0]const u8, c_uint, c_uint) c_int;
 
 /// Read values from `src` and write into named dest array starting at an offset.
 ///
@@ -297,17 +279,17 @@ extern fn libpd_read_array_double([*]f64, [*:0]const u8, c_uint, c_uint) c_int;
 /// Double-precision variant of libpd_write_array().
 pub fn writeArrayDouble(
 	name: [*:0]const u8,
-	offset: c_uint,
+	offset: usize,
 	src: []const f64,
 ) ArrayError!void {
-	const res = libpd_write_array_double(name, offset, src.ptr, @intCast(src.len));
+	const res = c.libpd_write_array_double(
+		name, @intCast(offset), src.ptr, @intCast(src.len));
 	return switch (res) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
 	};
 }
-extern fn libpd_write_array_double([*:0]const u8, c_uint, [*]const f64, c_uint) c_int;
 
 
 // -------------------------- sending messages to pd ---------------------------
@@ -319,21 +301,19 @@ pub const SendError = error{ReceiverNotFound};
 ///
 /// Ex: `sendBang("foo")` will send a bang to [s foo] on the next tick.
 pub fn sendBang(recv: [*:0]const u8) SendError!void {
-	if (libpd_bang(recv) != 0) {
+	if (c.libpd_bang(recv) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
-extern fn libpd_bang([*:0]const u8) c_int;
 
 /// Send a float to a destination receiver.
 ///
 /// Ex: `sendFloat("foo", 1)` will send a 1.0 to [s foo] on the next tick.
 pub fn sendFloat(recv: [*:0]const u8, x: f32) SendError!void {
-	if (libpd_float(recv, x) != 0) {
+	if (c.libpd_float(recv, x) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
-extern fn libpd_float([*:0]const u8, f32) c_int;
 
 /// Send a double to a destination receiver.
 ///
@@ -341,20 +321,18 @@ extern fn libpd_float([*:0]const u8, f32) c_int;
 ///
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
 pub fn sendDouble(recv: [*:0]const u8, x: f64) SendError!void {
-	if (libpd_double(recv, x) != 0) {
+	if (c.libpd_double(recv, x) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
-extern fn libpd_double([*:0]const u8, f64) c_int;
 
 /// Send a symbol to a destination receiver.
 /// Ex: `sendSymbol("foo", "bar")` will send "bar" to [s foo] on the next tick.
 pub fn sendSymbol(recv: [*:0]const u8, s: [*:0]const u8) SendError!void {
-	if (libpd_symbol(recv, s) != 0) {
+	if (c.libpd_symbol(recv, s) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
-extern fn libpd_symbol([*:0]const u8, [*:0]const u8) c_int;
 
 
 // ------------ sending compound messages: sequenced function calls ------------
@@ -364,12 +342,11 @@ extern fn libpd_symbol([*:0]const u8, [*:0]const u8) c_int;
 /// Messages can be of a smaller length as max length is only an upper bound.
 ///
 /// Note: no cleanup is required for unfinished messages.
-pub fn startMessage(maxlen: c_uint) error{MessageTooLong}!void {
-	if (libpd_start_message(maxlen) != 0) {
+pub fn startMessage(maxlen: usize) error{MessageTooLong}!void {
+	if (c.libpd_start_message(@intCast(maxlen)) != 0) {
 		return error.MessageTooLong;
 	}
 }
-extern fn libpd_start_message(maxlen: c_uint) c_int;
 
 test startMessage {
 	try testing.expectError(error.MessageTooLong, startMessage(1234567890));
@@ -377,18 +354,15 @@ test startMessage {
 }
 
 /// Add a float to the current message in progress.
-pub const addFloat = libpd_add_float;
-extern fn libpd_add_float(f32) void;
+pub const addFloat = c.libpd_add_float;
 
 /// Add a double to the current message in progress.
 ///
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
-pub const addDouble = libpd_add_double;
-extern fn libpd_add_double(f64) void;
+pub const addDouble = c.libpd_add_double;
 
 /// add a symbol to the current message in progress
-pub const addSymbol = libpd_add_symbol;
-extern fn libpd_add_symbol([*:0]const u8) void;
+pub const addSymbol = c.libpd_add_symbol;
 
 /// Finish current message and send as a list to a destination receiver
 ///
@@ -401,11 +375,10 @@ extern fn libpd_add_symbol([*:0]const u8) void;
 ///     finishList("foo");
 /// ```
 pub fn finishList(recv: [*:0]const u8) SendError!void {
-	if (libpd_finish_list(recv) != 0) {
+	if (c.libpd_finish_list(recv) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
-extern fn libpd_finish_list([*:0]const u8) c_int;
 
 /// Finish current message and send as a typed message to a destination receiver.
 ///
@@ -419,30 +392,30 @@ extern fn libpd_finish_list([*:0]const u8) c_int;
 ///     finishMessage("pd", "dsp");
 /// ```
 pub fn finishMessage(recv: [*:0]const u8, msg: [*:0]const u8) SendError!void {
-	if (libpd_finish_message(recv, msg) != 0) {
+	if (c.libpd_finish_message(recv, msg) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
-extern fn libpd_finish_message([*:0]const u8, [*:0]const u8) c_int;
 
 
 // ------------------- sending compound messages: atom array -------------------
 // -----------------------------------------------------------------------------
 
 /// Write a float value to the given atom.
-pub const setFloat = libpd_set_float;
-extern fn libpd_set_float(*Atom, f32) void;
+pub fn setFloat(atom: *Atom, f: f32) void {
+	c.libpd_set_float(@ptrCast(atom), f);
+}
 
 /// Write a double value to the given atom.
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
-pub const setDouble = libpd_set_double;
-extern fn libpd_set_double(*Atom, f64) void;
+pub fn setDouble(atom: *Atom, f: f64) void {
+	c.libpd_set_double(@ptrCast(atom), f);
+}
 
 /// Write a symbol value to the given atom.
-pub fn setSymbol(a: *Atom, s: [*:0]const u8) void {
-	libpd_set_symbol(a, s);
+pub fn setSymbol(atom: *Atom, s: [*:0]const u8) void {
+	c.libpd_set_symbol(@ptrCast(atom), s);
 }
-extern fn libpd_set_symbol(*Atom, [*:0]const u8) void;
 
 /// Send an atom array of a given length as a list to a destination receiver.
 ///
@@ -455,19 +428,16 @@ extern fn libpd_set_symbol(*Atom, [*:0]const u8) void;
 ///     sendList("foo", &v);
 /// ```
 pub fn sendList(recv: [*:0]const u8, av: []Atom) SendError!void {
-	if (libpd_list(recv, av.len, av.ptr) != 0) {
+	if (c.libpd_list(recv, @intCast(av.len), @ptrCast(av.ptr)) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
-extern fn libpd_list([*:0]const u8, c_uint, [*]Atom) c_int;
-
 
 pub fn sendMessage(recv: [*:0]const u8, msg: [*:0]const u8, av: []Atom) SendError!void {
-	if (libpd_message(recv, msg, @intCast(av.len), av.ptr) != 0) {
+	if (c.libpd_message(recv, msg, @intCast(av.len), @ptrCast(av.ptr)) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
-extern fn libpd_message([*:0]const u8, [*:0]const u8, c_uint, [*]Atom) c_int;
 
 
 // ------------------------ receiving messages from pd -------------------------
@@ -479,25 +449,23 @@ extern fn libpd_message([*:0]const u8, [*:0]const u8, c_uint, [*]Atom) c_int;
 ///     the libpd message hooks
 /// returns an opaque receiver pointer or NULL on failure
 pub fn bind(recv: [*:0]const u8) error{BindError}!*anyopaque {
-	return libpd_bind(recv) orelse error.BindError;
+	return c.libpd_bind(recv) orelse error.BindError;
 }
-extern fn libpd_bind([*:0]const u8) ?*anyopaque;
 
 /// Unsubscribe and free a source receiver object created by `libpd_bind()`.
-pub const unbind = libpd_unbind;
-extern fn libpd_unbind(*anyopaque) void;
+pub const unbind = c.libpd_unbind;
 
 /// check if a source receiver object exists with a given name
 pub fn exists(recv: [*:0]const u8) bool {
-	return (libpd_exists(recv) != 0);
+	return (c.libpd_exists(recv) != 0);
 }
-extern fn libpd_exists([*:0]const u8) c_int;
 
 /// Print receive hook signature. 1st parameter is the source receiver name.
 ///
 /// Note: default behavior returns individual words and spaces:
 ///     line "hello 123" is received in 3 parts -> "hello", " ", "123\n"
 pub const PrintHook = fn ([*:0]const u8) callconv(.c) void;
+
 /// Set the print receiver hook, prints to stdout by default
 /// Note: do not call this while DSP is running.
 ///
@@ -512,90 +480,105 @@ pub const PrintHook = fn ([*:0]const u8) callconv(.c) void;
 ///
 /// Call with NULL pointer to free internal buffer.
 ///
-/// Note: do not call before libpd_init()
-pub const setPrintHook = libpd_set_concatenated_printhook;
-extern fn libpd_set_concatenated_printhook(?*const PrintHook) void;
+/// Note: do not call before `libpd_init()`
+pub fn setPrintHook(hook: ?*const PrintHook) void {
+	c.libpd_set_concatenated_printhook(@ptrCast(hook));
+}
 
 /// Bang receive hook signature. 1st parameter is the source receiver name.
 pub const BangHook = fn ([*:0]const u8) callconv(.c) void;
+
 /// Set the bang receiver hook, NULL by default.
 /// Note: do not call this while DSP is running
-pub const setBangHook = libpd_set_banghook;
-extern fn libpd_set_banghook(?*const BangHook) void;
+pub fn setBangHook(hook: ?*const BangHook) void {
+	c.libpd_set_banghook(@ptrCast(hook));
+}
 
 /// Float receive hook signature. 1st parameter is the source receiver name.
 pub const FloatHook = fn ([*:0]const u8, f32) callconv(.c) void;
+
 /// Set the float receiver hook, NULL by default.
 /// Note: avoid calling this while DSP is running.
 /// Note: you can either have a float receiver hook, or a double receiver
 ///       hook (see below), but not both.
 ///       Calling this, will automatically unset the double receiver hook
-pub const setFloatHook = libpd_set_floathook;
-extern fn libpd_set_floathook(?*const FloatHook) void;
+pub fn setFloatHook(hook: ?*const FloatHook) void {
+	c.libpd_set_floathook(@ptrCast(hook));
+}
 
 /// Double receive hook signature. 1st parameter is the source receiver name.
 ///
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
 pub const DoubleHook = fn ([*:0]const u8, f64) callconv(.c) void;
+
 /// Set the double receiver hook, NULL by default.
 /// Note: avoid calling this while DSP is running.
 /// Note: you can either have a double receiver hook, or a float receiver
 ///       hook (see above), but not both.
 ///       Calling this, will automatically unset the float receiver hook
-pub const setDoubleHook = libpd_set_doublehook;
-extern fn libpd_set_doublehook(?*const DoubleHook) void;
+pub fn setDoubleHook(hook: ?*const DoubleHook) void {
+	c.libpd_set_doublehook(@ptrCast(hook));
+}
 
 /// Symbol receive hook signature. 1st parameter is the source receiver name.
 pub const SymbolHook = fn ([*:0]const u8, [*:0]const u8) callconv(.c) void;
+
 /// Set the symbol receiver hook, NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setSymbolHook = libpd_set_symbolhook;
-extern fn libpd_set_symbolhook(?*const SymbolHook) void;
+pub fn setSymbolHook(hook: ?*const SymbolHook) void {
+	c.libpd_set_symbolhook(@ptrCast(hook));
+}
 
 /// List receive hook signature. 1st parameter is the source receiver name,
 /// followed by list length and vector containing the list elements,
 /// which can be accessed using the atom accessor functions.
 pub const ListHook = fn ([*:0]const u8, c_uint, [*]Atom) callconv(.c) void;
+
 /// Set the list receiver hook, NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setListHook = libpd_set_listhook;
-extern fn libpd_set_listhook(?*const ListHook) void;
+pub fn setListHook(hook: ?*const ListHook) void {
+	c.libpd_set_listhook(@ptrCast(hook));
+}
 
 /// Typed message hook signature. 1st parameter is the source receiver name and 2nd is
 /// the typed message name.
 ///
 /// A message like [; foo bar 1 2 a b( will trigger a
 /// function call like `libpd_messagehook("foo", "bar", 4, argv)`
-pub const MessageHook = fn ([*:0]const u8, [*:0]const u8, c_uint, [*]Atom) callconv(.c) void;
+pub const MessageHook =
+	fn ([*:0]const u8, [*:0]const u8, c_uint, [*]Atom) callconv(.c) void;
+
 /// Set the message receiver hook, NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setMessageHook = libpd_set_messagehook;
-extern fn libpd_set_messagehook(?*const MessageHook) void;
+pub fn setMessageHook(hook: ?*const MessageHook) void {
+	c.libpd_set_messagehook(@ptrCast(hook));
+}
 
 /// Check if an atom is a float type.
-pub fn isFloat(a: *Atom) bool {
-	return (libpd_is_float(a) != 0);
+pub fn isFloat(atom: *Atom) bool {
+	return (c.libpd_is_float(@ptrCast(atom)) != 0);
 }
-extern fn libpd_is_float(*Atom) c_int;
 
 /// Check if an atom is a symbol type.
-pub fn isSymbol(a: *Atom) bool {
-	return (libpd_is_symbol(a) != 0);
+pub fn isSymbol(atom: *Atom) bool {
+	return (c.libpd_is_symbol(@ptrCast(atom)) != 0);
 }
-extern fn libpd_is_symbol(*Atom) c_int;
 
 /// Returns the float value of an atom.
-pub const getFloat = libpd_get_float;
-extern fn libpd_get_float(*Atom) f32;
+pub fn getFloat(atom: *Atom) f32 {
+	return c.libpd_get_float(@ptrCast(atom));
+}
 
 /// Returns the double value of an atom.
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
-pub const getDouble = libpd_get_double;
-extern fn libpd_get_double(*Atom) f64;
+pub fn getDouble(atom: *Atom) f64 {
+	return c.libpd_get_double(@ptrCast(atom));
+}
 
 /// Returns the symbol value of an atom.
-pub const getSymbol = libpd_get_symbol;
-extern fn libpd_get_symbol(*Atom) [*:0]const u8;
+pub fn getSymbol(atom: *Atom) [*:0]const u8 {
+	return c.libpd_get_symbol(@ptrCast(atom));
+}
 
 
 // ------------------------ sending MIDI messages to pd ------------------------
@@ -605,72 +588,63 @@ extern fn libpd_get_symbol(*Atom) [*:0]const u8;
 /// Channel is 0-indexed, pitch is 0-127, and velocity is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
 /// Note: there is no note off message, send a note on with velocity = 0 instead.
-pub fn sendNoteOn(channel: c_uint, pitch: u7, velocity: u7) void {
-	_ = libpd_noteon(channel, @intCast(pitch), @intCast(velocity));
+pub fn sendNoteOn(channel: u32, pitch: u7, velocity: u7) void {
+	_ = c.libpd_noteon(@intCast(channel), @intCast(pitch), @intCast(velocity));
 }
-extern fn libpd_noteon(channel: c_uint, pitch: c_uint, velocity: c_uint) c_int;
 
 /// Send a MIDI control change message to [ctlin] objects.
 /// Channel is 0-indexed, controller is 0-127, and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
-pub fn sendControlChange(channel: c_uint, controller: u7, value: u7) void {
-	_ = libpd_controlchange(channel, @intCast(controller), @intCast(value));
+pub fn sendControlChange(channel: u32, controller: u7, value: u7) void {
+	_ = c.libpd_controlchange(@intCast(channel), @intCast(controller), @intCast(value));
 }
-extern fn libpd_controlchange(channel: c_uint, controller: c_uint, value: c_uint) c_int;
 
 /// Send a MIDI program change message to [pgmin] objects.
 /// Channel is 0-indexed and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
-pub fn sendProgramChange(channel: c_uint, value: u7) void {
-	_ = libpd_programchange(channel, @intCast(value));
+pub fn sendProgramChange(channel: u32, value: u7) void {
+	_ = c.libpd_programchange(@intCast(channel), @intCast(value));
 }
-extern fn libpd_programchange(channel: c_uint, value: c_uint) c_int;
 
 /// Send a MIDI pitch bend message to [bendin] objects.
 /// Channel is 0-indexed and value is -8192-8192.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
 /// Note: [bendin] outputs 0-16383 while [bendout] accepts -8192-8192.
-pub fn sendPitchBend(channel: c_uint, value: i14) void {
-	_ = libpd_pitchbend(channel, @intCast(value));
+pub fn sendPitchBend(channel: u32, value: i14) void {
+	_ = c.libpd_pitchbend(@intCast(channel), @intCast(value));
 }
-extern fn libpd_pitchbend(channel: c_uint, value: c_int) c_int;
 
 /// Send a MIDI after touch message to [touchin] objects.
 /// Channel is 0-indexed and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
-pub fn sendAftertouch(channel: c_uint, value: u7) void {
-	_ = libpd_aftertouch(channel, @intCast(value));
+pub fn sendAftertouch(channel: u32, value: u7) void {
+	_ = c.libpd_aftertouch(@intCast(channel), @intCast(value));
 }
-extern fn libpd_aftertouch(channel: c_uint, value: c_uint) c_int;
 
 /// Send a MIDI poly after touch message to [polytouchin] objects.
 /// Channel is 0-indexed, pitch is 0-127, and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
-pub fn sendPolyAftertouch(channel: c_uint, pitch: u7, value: u7) void {
-	_ = libpd_polyaftertouch(channel, @intCast(pitch), @intCast(value));
+pub fn sendPolyAftertouch(channel: u32, pitch: u7, value: u7) void {
+	_ = c.libpd_polyaftertouch(@intCast(channel), @intCast(pitch), @intCast(value));
 }
-extern fn libpd_polyaftertouch(channel: c_uint, pitch: c_uint, value: c_uint) c_int;
 
 /// Send a raw MIDI byte to [midiin] objects.
 /// Port is 0-indexed and byte is 0-256.
 pub fn sendMidiByte(port: u12, byte: u8) void {
-	_ = libpd_midibyte(@intCast(port), @intCast(byte));
+	_ = c.libpd_midibyte(@intCast(port), @intCast(byte));
 }
-extern fn libpd_midibyte(port: c_uint, byte: c_uint) c_int;
 
 /// Send a raw MIDI byte to [sysexin] objects.
 /// Port is 0-indexed and byte is 0-256.
 pub fn sendSysex(port: u12, byte: u8) void {
-	_ = libpd_sysex(@intCast(port), @intCast(byte));
+	_ = c.libpd_sysex(@intCast(port), @intCast(byte));
 }
-extern fn libpd_sysex(port: c_uint, byte: c_uint) c_int;
 
 /// Send a raw MIDI byte to [realtimein] objects.
 /// Port is 0-indexed and byte is 0-256.
 pub fn sendSysRealTime(port: u12, byte: u8) void {
-	_ = libpd_sysrealtime(@intCast(port), @intCast(byte));
+	_ = c.libpd_sysrealtime(@intCast(port), @intCast(byte));
 }
-extern fn libpd_sysrealtime(port: c_uint, byte: c_uint) c_int;
 
 
 // ---------------------- receiving MIDI messages from pd ----------------------
@@ -682,32 +656,38 @@ extern fn libpd_sysrealtime(port: c_uint, byte: c_uint) c_int;
 /// Note: there is no note off message, note on w/ velocity = 0 is used instead.
 /// Note: out of range values from pd are clamped.
 pub const NoteOnHook = fn (c_uint, c_uint, c_uint) callconv(.c) void;
+
 /// Set the MIDI note on hook to receive from [noteout] objects, NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setNoteOnHook = libpd_set_noteonhook;
-pub extern fn libpd_set_noteonhook(?*const NoteOnHook) void;
+pub fn setNoteOnHook(hook: ?*const NoteOnHook) void {
+	c.libpd_set_noteonhook(@ptrCast(hook));
+}
 
 /// MIDI control change receive hook signature.
 /// Channel is 0-indexed, controller is 0-127, and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
 /// Note: out of range values from pd are clamped.
 pub const ControlChangeHook = fn (c_uint, c_uint, c_uint) callconv(.c) void;
+
 /// Set the MIDI control change hook to receive from [ctlout] objects,
 /// NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setControlChangeHook = libpd_set_controlchangehook;
-pub extern fn libpd_set_controlchangehook(?*const ControlChangeHook) void;
+pub fn setControlChangeHook(hook: ?*const ControlChangeHook) void {
+	c.libpd_set_controlchangehook(@ptrCast(hook));
+}
 
 /// MIDI program change receive hook signature.
 /// Channel is 0-indexed and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
 /// Note: out of range values from pd are clamped.
 pub const ProgramChangeHook = fn (c_uint, c_uint) callconv(.c) void;
+
 /// Set the MIDI program change hook to receive from [pgmout] objects,
 /// NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setProgramChangeHook = libpd_set_programchangehook;
-pub extern fn libpd_set_programchangehook(?*const ProgramChangeHook) void;
+pub fn setProgramChangeHook(hook: ?*const ProgramChangeHook) void {
+	c.libpd_set_programchangehook(@ptrCast(hook));
+}
 
 /// MIDI pitch bend receive hook signature.
 /// Channel is 0-indexed and value is -8192-8192.
@@ -715,43 +695,51 @@ pub extern fn libpd_set_programchangehook(?*const ProgramChangeHook) void;
 /// Note: [bendin] outputs 0-16383 while [bendout] accepts -8192-8192.
 /// Note: out of range values from pd are clamped.
 pub const PitchBendHook = fn (c_uint, c_int) callconv(.c) void;
+
 /// Set the MIDI pitch bend hook to receive from [bendout] objects,
 /// NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setPitchBendHook = libpd_set_pitchbendhook;
-pub extern fn libpd_set_pitchbendhook(?*const PitchBendHook) void;
+pub fn setPitchBendHook(hook: ?*const PitchBendHook) void {
+	c.libpd_set_pitchbendhook(@ptrCast(hook));
+}
 
 /// MIDI after touch receive hook signature.
 /// Channel is 0-indexed and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
 /// Note: out of range values from pd are clamped.
 pub const AftertouchHook = fn (c_uint, c_uint) callconv(.c) void;
+
 /// Set the MIDI after touch hook to receive from [touchout] objects,
 /// NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setAftertouchHook = libpd_set_aftertouchhook;
-pub extern fn libpd_set_aftertouchhook(?*const AftertouchHook) void;
+pub fn setAftertouchHook(hook: ?*const AftertouchHook) void {
+	c.libpd_set_aftertouchhook(@ptrCast(hook));
+}
 
 /// MIDI poly after touch receive hook signature.
 /// Channel is 0-indexed, pitch is 0-127, and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
 /// Note: out of range values from pd are clamped.
 pub const PolyAftertouchHook = fn (c_uint, c_uint, c_uint) callconv(.c) void;
+
 /// Set the MIDI poly after touch hook to receive from [polytouchout] objects,
 /// NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setPolyAftertouchHook = libpd_set_polyaftertouchhook;
-pub extern fn libpd_set_polyaftertouchhook(?*const PolyAftertouchHook) void;
+pub fn setPolyAftertouchHook(hook: ?*const PolyAftertouchHook) void {
+	c.libpd_set_polyaftertouchhook(@ptrCast(hook));
+}
 
 /// Raw MIDI byte receive hook signature.
 /// Port is 0-indexed and byte is 0-256.
 /// Note: out of range values from pd are clamped.
 pub const MidiByteHook = fn (c_uint, c_uint) callconv(.c) void;
+
 /// Set the raw MIDI byte hook to receive from [midiout] objects,
 /// NULL by default.
 /// Note: do not call this while DSP is running.
-pub const setMidiByteHook = libpd_set_midibytehook;
-pub extern fn libpd_set_midibytehook(?*const MidiByteHook) void;
+pub fn setMidiByteHook(hook: ?*const MidiByteHook) void {
+	c.libpd_set_midibytehook(@ptrCast(hook));
+}
 
 
 // ------------------------------------ GUI ------------------------------------
@@ -761,24 +749,21 @@ pub extern fn libpd_set_midibytehook(?*const MidiByteHook) void;
 /// Requires the path to pd's main folder that contains bin/, tcl/, etc.
 /// For a macOS .app bundle: /path/to/Pd-#.#-#.app/Contents/Resources.
 pub fn startGui(path: [*:0]const u8) error{StartGui}!void {
-	if (libpd_start_gui(path) != 0) {
+	if (c.libpd_start_gui(path) != 0) {
 		return error.StartGui;
 	}
 }
-extern fn libpd_start_gui([*:0]const u8) c_int;
 
 /// Stop the pd vanilla GUI.
-pub const stopGui = libpd_stop_gui;
-extern fn libpd_stop_gui() void;
+pub const stopGui = c.libpd_stop_gui;
 
 /// Manually update and handle any GUI messages.
 /// This is called automatically when using a libpd_process function.
 /// Note: this also facilitates network message processing, etc so it can be
 ///       useful to call repeatedly when idle for more throughput.
 pub fn pollGui() bool {
-	return (libpd_poll_gui() != 0);
+	return (c.libpd_poll_gui() != 0);
 }
-extern fn libpd_poll_gui() c_int;
 
 
 // ---------------------------- multiple instances -----------------------------
@@ -789,47 +774,52 @@ extern fn libpd_poll_gui() c_int;
 /// returns new instance or NULL when libpd is not compiled with PDINSTANCE.
 pub fn newInstance() error{SingleInstanceMode, OutOfMemory}!*Instance {
 	return if (pd.opt.multi)
-		libpd_new_instance() orelse error.OutOfMemory
+		c.libpd_new_instance() orelse error.OutOfMemory
 	else error.SingleInstanceMode;
 }
-extern fn libpd_new_instance() ?*Instance;
 
 /// Set the current pd instance.
 /// Subsequent libpd calls will affect this instance only.
 /// Note: use this in place of pd_setinstance().
 /// Does nothing when libpd is not compiled with PDINSTANCE
-pub const setInstance = libpd_set_instance;
-extern fn libpd_set_instance(*Instance) void;
+pub fn setInstance(instance: *Instance) void {
+	c.libpd_set_instance(@ptrCast(instance));
+}
 
 /// Free a pd instance and set main instance as current.
 /// Note: use this in place of pdinstance_free().
 /// Does nothing when libpd is not compiled with PDINSTANCE.
-pub const freeInstance = libpd_free_instance;
-extern fn libpd_free_instance(*Instance) void;
+pub fn freeInstance(instance: *Instance) void {
+	c.libpd_free_instance(@ptrCast(instance));
+}
 
 /// Get the current pd instance.
-pub const thisInstance = libpd_this_instance;
-extern fn libpd_this_instance() *Instance;
+pub fn thisInstance() *Instance {
+	return @ptrCast(c.libpd_this_instance());
+}
 
 /// Get the main pd instance.
-pub const mainInstance = libpd_main_instance;
-extern fn libpd_main_instance() *Instance;
+pub fn mainInstance() *Instance {
+	return @ptrCast(c.libpd_main_instance());
+}
 
 /// get the number of pd instances, including the main instance
 /// returns number or 1 when libpd is not compiled with PDINSTANCE
-pub const numInstances = libpd_num_instances;
-extern fn libpd_num_instances() c_uint;
+pub fn numInstances() c_uint {
+	return @intCast(c.libpd_num_instances());
+}
 
 /// per-instance data free hook signature
 pub const FreeHook = fn (?*anyopaque) callconv(.c) void;
+
 /// Set per-instance user data and optional free hook.
 /// Note: if non-NULL, freehook is called by libpd_free_instance()
-pub const setInstanceData = libpd_set_instancedata;
-extern fn libpd_set_instancedata(*anyopaque, ?*const FreeHook) void;
+pub fn setInstanceData(data: *anyopaque, hook: ?*const FreeHook) void {
+	c.libpd_set_instancedata(data, hook);
+}
 
 /// get per-instance user data
-pub const getInstanceData = libpd_get_instancedata;
-extern fn libpd_get_instancedata() ?*anyopaque;
+pub const getInstanceData = c.libpd_get_instancedata;
 
 
 // --------------------------------- log level ---------------------------------
@@ -837,12 +827,10 @@ extern fn libpd_get_instancedata() ?*anyopaque;
 
 /// set verbose print state: 0 or 1
 pub fn setVerbose(state: bool) void {
-	libpd_set_verbose(@intFromBool(state));
+	c.libpd_set_verbose(@intFromBool(state));
 }
-extern fn libpd_set_verbose(c_uint) void;
 
 /// get the verbose print state: 0 or 1
 pub fn isVerbose() bool {
-	return (libpd_get_verbose() != 0);
+	return (c.libpd_get_verbose() != 0);
 }
-extern fn libpd_get_verbose() c_int;
