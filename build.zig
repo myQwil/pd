@@ -23,12 +23,13 @@ fn installFiles(
 	dest_path: []const u8,
 	exts: []const []const u8,
 ) !void {
-	// Using `getPath3` outside of the make phase. Normally, this would be bad,
-	// but it's from a dependency, so the files are there at graph construction time.
 	const io = b.graph.io;
-	var dir = try dep.path(src_path).getPath3(b, null)
-		.openDir(io, "", .{ .iterate = true });
+	// Using `getPath4` outside of the make phase. Normally, this would be bad,
+	// but it's from a dependency, so the files are there at graph construction time.
+	const cpath = try dep.path(src_path).getPath4(b, null);
+	var dir = try cpath.openDir(io, "", .{ .iterate = true });
 	defer dir.close(io);
+
 	var iter = dir.iterate();
 	while (try iter.next(io)) |f| {
 		if (f.kind != .file or !endsWith(f.name, exts)) {

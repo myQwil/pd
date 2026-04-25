@@ -59,7 +59,7 @@ fn make(step: *Step, _: Step.MakeOptions) !void {
 	defer dir.close(io);
 
 	const target_path = blk: {
-		const p = link.source.getPath3(b, step);
+		const p = try link.source.getPath4(b, step);
 		const full_src_path = b.pathResolve(&.{ p.root_dir.path orelse ".", p.sub_path });
 		if (std.Io.Dir.path.relative(b.allocator, ".", null, head, full_src_path)) |rel| {
 			b.allocator.free(full_src_path);
