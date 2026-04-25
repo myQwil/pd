@@ -15,6 +15,7 @@ const GotFn = m.GotFn;
 const Atom = m.Atom;
 const Float = m.Float;
 const Symbol = m.Symbol;
+const uint = m.uint;
 
 pub fn printStruct(T: type, name: [:0]const u8) void {
 	const info = @typeInfo(T).@"struct";
@@ -200,8 +201,8 @@ pub const Class = extern struct {
 		c.class_setdrawcommand(@ptrCast(self));
 	}
 
-	pub fn doMainSignalIn(self: *Class, onset: usize) void {
-		c.class_domainsignalin(@ptrCast(self), @intCast(onset));
+	pub fn doMainSignalIn(self: *Class, onset: uint) void {
+		c.class_domainsignalin(@ptrCast(self), onset);
 	}
 
 	pub fn setSaveFn(self: *Class, savefn: ?*const SaveFn) void {

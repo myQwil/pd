@@ -1,6 +1,7 @@
 const c = @import("cdef");
 const m = @import("pd.zig");
 
+const uint = m.uint;
 const Float = m.Float;
 const Sample = m.Sample;
 
@@ -44,8 +45,8 @@ pub const NameList = extern struct {
 		c.namelist_free(@ptrCast(self));
 	}
 
-	pub fn get(self: *NameList, idx: usize) ?[*:0]const u8 {
-		return c.namelist_get(@ptrCast(self), @intCast(idx));
+	pub fn get(self: *NameList, idx: uint) ?[*:0]const u8 {
+		return c.namelist_get(@ptrCast(self), idx);
 	}
 };
 

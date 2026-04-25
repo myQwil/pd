@@ -1,6 +1,8 @@
 const c = @import("cdef");
 pub const pd = @import("pd");
 
+pub const ulong = @Int(.unsigned, @bitSizeOf(c_long) - 1);
+const uint = pd.uint;
 const Atom = pd.Atom;
 const Instance = pd.Instance;
 
@@ -17,9 +19,9 @@ pub const Base = struct {
 	/// Note: sets `SIGFPE` handler to keep bad pd patches from crashing due to divide
 	/// by 0, set any custom handling after calling this function.
 	pub fn init(
-		in_channels: c_uint,
-		out_channels: c_uint,
-		sample_rate: c_uint,
+		in_channels: uint,
+		out_channels: uint,
+		sample_rate: uint,
 		is_queued: bool,
 	) error{AlreadyInitialized, RingBufferFail, InitAudioFail}!Base {
 		if (is_queued) {
@@ -104,7 +106,7 @@ pub fn computeAudio(state: bool) void {
 }
 
 /// Return pd's fixed block size: the number of sample frames per 1 pd tick.
-pub fn blockSize() c_uint {
+pub fn blockSize() uint {
 	return @intCast(c.libpd_blocksize());
 }
 
@@ -115,11 +117,11 @@ pub const ProcessError = error{ProcessError};
 /// Buffer sizes are based on # of ticks and channels where:
 ///     `size = ticks * libpd_blocksize() * (in/out)channels`.
 pub fn processFloat(
-	ticks: usize,
+	ticks: uint,
 	in_buffer: ?[*]const f32,
 	out_buffer: ?[*]f32,
 ) ProcessError!void {
-	if (c.libpd_process_float(@intCast(ticks), in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_float(ticks, in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
@@ -134,11 +136,11 @@ pub fn processFloat(
 ///
 /// Note: for efficiency, does *not* clip input
 pub fn processShort(
-	ticks: usize,
+	ticks: uint,
 	in_buffer: ?[*]const c_short,
 	out_buffer: ?[*]c_short,
 ) ProcessError!void {
-	if (c.libpd_process_short(@intCast(ticks), in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_short(ticks, in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
@@ -150,11 +152,11 @@ pub fn processShort(
 ///
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`
 pub fn processDouble(
-	ticks: usize,
+	ticks: uint,
 	in_buffer: ?[*]const f64,
 	out_buffer: ?[*]f64,
 ) ProcessError!void {
-	if (c.libpd_process_double(@intCast(ticks), in_buffer, out_buffer) != 0) {
+	if (c.libpd_process_double(ticks, in_buffer, out_buffer) != 0) {
 		return error.ProcessError;
 	}
 }
@@ -216,14 +218,14 @@ pub fn processRawDouble(
 // -----------------------------------------------------------------------------
 
 /// Get the size of an array by name.
-pub fn arraySize(name: [*:0]const u8) error{ArrayNotFound}!usize {
+pub fn arraySize(name: [*:0]const u8) error{ArrayNotFound}!uint {
 	const size = c.libpd_arraysize(name);
 	return if (size < 0) error.ArrayNotFound else @intCast(size);
 }
 
 /// (re)size an array by name; sizes <= 0 are clipped to 1.
-pub fn resizeArray(name: [*:0]const u8, size: usize) error{ArrayNotFound}!void {
-	if (c.libpd_resize_array(name, @intCast(size)) != 0) {
+pub fn resizeArray(name: [*:0]const u8, size: ulong) error{ArrayNotFound}!void {
+	if (c.libpd_resize_array(name, size) != 0) {
 		return error.ArrayNotFound;
 	}
 }
@@ -233,9 +235,8 @@ pub const ArrayError = error{ArrayNotFound, ArrayOutOfBounds};
 /// Read values from named src array and write into `dest` starting at an offset.
 ///
 /// Note: performs no bounds checking on `dest`.
-pub fn readArray(dest: []f32, name: [*:0]const u8, offset: usize) ArrayError!void {
-	const res = c.libpd_read_array(dest.ptr, name, @intCast(offset), @intCast(dest.len));
-	return switch (res) {
+pub fn readArray(name: [*:0]const u8, offset: uint, dest: []f32) ArrayError!void {
+	return switch (c.libpd_read_array(dest.ptr, name, offset, @intCast(dest.len))) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
@@ -245,9 +246,8 @@ pub fn readArray(dest: []f32, name: [*:0]const u8, offset: usize) ArrayError!voi
 /// Read values from `src` and write into named dest array starting at an offset.
 ///
 /// Note: performs no bounds checking on `src`.
-pub fn writeArray(name: [*:0]const u8, offset: usize, src: []const f32) ArrayError!void {
-	const res = c.libpd_write_array(name, @intCast(offset), src.ptr, @intCast(src.len));
-	return switch (res) {
+pub fn writeArray(name: [*:0]const u8, offset: uint, src: []const f32) ArrayError!void {
+	return switch (c.libpd_write_array(name, offset, src.ptr, @intCast(src.len))) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
@@ -261,9 +261,8 @@ pub fn writeArray(name: [*:0]const u8, offset: usize, src: []const f32) ArrayErr
 /// Note: only full-precision when compiled with `PD_FLOATSIZE=64`.
 ///
 /// Double-precision variant of libpd_read_array().
-pub fn readArrayDouble(dest: []f64, name: [*:0]const u8, offset: usize) ArrayError!void {
-	const res = c.libpd_read_array_double(dest.ptr, name, offset, @intCast(dest.len));
-	return switch (res) {
+pub fn readArrayDouble(name: [*:0]const u8, offset: uint, dest: []f64) ArrayError!void {
+	return switch (c.libpd_read_array_double(dest.ptr, name, offset, @intCast(dest.len))) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
@@ -278,13 +277,10 @@ pub fn readArrayDouble(dest: []f64, name: [*:0]const u8, offset: usize) ArrayErr
 ///
 /// Double-precision variant of libpd_write_array().
 pub fn writeArrayDouble(
-	name: [*:0]const u8,
-	offset: usize,
+	name: [*:0]const u8, offset: uint,
 	src: []const f64,
 ) ArrayError!void {
-	const res = c.libpd_write_array_double(
-		name, @intCast(offset), src.ptr, @intCast(src.len));
-	return switch (res) {
+	return switch (c.libpd_write_array_double(name, offset, src.ptr, @intCast(src.len))) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
@@ -342,8 +338,8 @@ pub fn sendSymbol(recv: [*:0]const u8, s: [*:0]const u8) SendError!void {
 /// Messages can be of a smaller length as max length is only an upper bound.
 ///
 /// Note: no cleanup is required for unfinished messages.
-pub fn startMessage(maxlen: usize) error{MessageTooLong}!void {
-	if (c.libpd_start_message(@intCast(maxlen)) != 0) {
+pub fn startMessage(maxlen: uint) error{MessageTooLong}!void {
+	if (c.libpd_start_message(maxlen) != 0) {
 		return error.MessageTooLong;
 	}
 }
@@ -805,7 +801,7 @@ pub fn mainInstance() *Instance {
 
 /// get the number of pd instances, including the main instance
 /// returns number or 1 when libpd is not compiled with PDINSTANCE
-pub fn numInstances() c_uint {
+pub fn numInstances() uint {
 	return @intCast(c.libpd_num_instances());
 }
 

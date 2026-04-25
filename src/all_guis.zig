@@ -3,6 +3,7 @@ const m = @import("pd.zig");
 const cnv = @import("canvas.zig");
 
 const Class = @import("imp.zig").Class;
+const uint = m.uint;
 const Atom = m.Atom;
 const Float = m.Float;
 const Symbol = m.Symbol;
@@ -146,7 +147,7 @@ pub const Gui = extern struct {
 
 	pub const Private = opaque {};
 
-	pub fn defaultSize() c_uint {
+	pub fn defaultSize() uint {
 		const current = GList.getCurrent() orelse return 0;
 		return m.zoomFontHeight(current.font, 1, false) + 2 + 3;
 	}
@@ -175,13 +176,12 @@ pub const Gui = extern struct {
 		c.iemgui_all_dollararg2sym(@ptrCast(self), @ptrCast(srl));
 	}
 
-	pub fn getName(self: *Gui, index: usize, argv: [*]Atom) ?*Symbol {
-		return @ptrCast(c.iemgui_new_dogetname(
-			@ptrCast(self), @intCast(index), @ptrCast(argv)));
+	pub fn getName(self: *Gui, index: uint, argv: [*]Atom) ?*Symbol {
+		return @ptrCast(c.iemgui_new_dogetname(@ptrCast(self), index, @ptrCast(argv)));
 	}
 
-	pub fn getNames(self: *Gui, index: usize, argv: ?[*]Atom) void {
-		c.iemgui_new_getnames(@ptrCast(self), @intCast(index), @ptrCast(argv));
+	pub fn getNames(self: *Gui, index: uint, argv: ?[*]Atom) void {
+		c.iemgui_new_getnames(@ptrCast(self), index, @ptrCast(argv));
 	}
 
 	pub fn loadColors(self: *Gui, bcol: *Atom, fcol: *Atom, lcol: *Atom) void {

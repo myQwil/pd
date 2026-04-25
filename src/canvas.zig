@@ -16,6 +16,7 @@ const Rect = m.Rect;
 const Scalar = m.Scalar;
 const Symbol = m.Symbol;
 const Word = m.Word;
+const uint = m.uint;
 
 pub const io_width = 7;
 pub const i_height = 3;
@@ -371,19 +372,19 @@ pub const GList = extern struct {
 	}
 
 	/// Nominal font size in points, e.g., 10
-	pub fn getFont(self: *GList) c_uint {
+	pub fn getFont(self: *GList) uint {
 		return @intCast(c.glist_getfont(@ptrCast(self)));
 	}
 
-	pub fn fontWidth(self: *GList) c_uint {
+	pub fn fontWidth(self: *GList) uint {
 		return @intCast(c.glist_fontwidth(@ptrCast(self)));
 	}
 
-	pub fn fontHeight(self: *GList) c_uint {
+	pub fn fontHeight(self: *GList) uint {
 		return @intCast(c.glist_fontheight(@ptrCast(self)));
 	}
 
-	pub fn getZoom(self: *GList) c_uint {
+	pub fn getZoom(self: *GList) uint {
 		return @intCast(c.glist_getzoom(@ptrCast(self)));
 	}
 
@@ -410,7 +411,6 @@ pub const GList = extern struct {
 	/// convert a coordinate value to a pixel location in window
 	pub fn toPixels(self: *const GList, val: @Vector(2, Float)) @Vector(2, Float) {
 		const FVec2 = @Vector(2, Float);
-		const UVec2 = @Vector(2, c_uint);
 		const rect: Rect(Float) = .{ .p1 = self.p1, .p2 = self.p2 };
 
 		if (!self.flags.isgraph) {
@@ -426,7 +426,7 @@ pub const GList = extern struct {
 		}
 		if (self.owner) |owner| {
 			const zoom: Float = @floatFromInt(self.zoom);
-			const size: FVec2 = @floatFromInt(@as(UVec2, self.pixsize));
+			const size: FVec2 = @floatFromInt(@as(@Vector(2, c_uint), self.pixsize));
 			const p1: FVec2 = @floatFromInt(self.obj.pos(owner));
 			const p2 = p1 + FVec2{ zoom, zoom } * size;
 
@@ -555,7 +555,7 @@ pub const GList = extern struct {
 		nameresult: *[*:0]u8,
 		size: c_uint,
 		bin: bool,
-	) error{GListOpenFail}!c_uint {
+	) error{GListOpenFail}!uint {
 		const fd = c.canvas_open(
 			@ptrCast(self), name, ext, dirresult, nameresult, size, @intFromBool(bin));
 		return if (fd < 0) error.GListOpenFail else @intCast(fd);
@@ -565,7 +565,7 @@ pub const GList = extern struct {
 		return c.canvas_getsr(@ptrCast(self));
 	}
 
-	pub fn signalLength(self: *GList) c_uint {
+	pub fn signalLength(self: *GList) uint {
 		return @intCast(c.canvas_getsignallength(@ptrCast(self)));
 	}
 

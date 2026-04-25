@@ -9,6 +9,7 @@ pub const stf = @import("stuff.zig");
 
 pub extern const pd_compatibilitylevel: c_int;
 
+pub const uint = @Int(.unsigned, @bitSizeOf(c_int) - 1);
 pub const Float = c.t_float;
 pub const Sample = Float;
 
@@ -188,7 +189,7 @@ pub const BinBuf = opaque {
 		return c.binbuf_duplicate(@ptrCast(self)) orelse error.OutOfMemory;
 	}
 
-	pub fn len(self: *const BinBuf) c_uint {
+	pub fn len(self: *const BinBuf) uint {
 		return @intCast(c.binbuf_getnatom(@ptrCast(self)));
 	}
 
@@ -220,7 +221,7 @@ pub const BinBuf = opaque {
 
 	pub fn add(self: *BinBuf, av: []const Atom) error{OutOfMemory}!void {
 		const newsize = self.len() + av.len;
-		c.binbuf_add(@ptrCast(self), @intCast(av.len), av.ptr);
+		c.binbuf_add(@ptrCast(self), @intCast(av.len), @ptrCast(av.ptr));
 		if (self.len() != newsize)
 			return error.OutOfMemory;
 	}
@@ -259,7 +260,7 @@ pub const BinBuf = opaque {
 	/// from `join`.  The symbol ";" goes to a semicolon, etc.
 	pub fn restore(self: *BinBuf, av: []Atom) error{OutOfMemory}!void {
 		const newsize = self.len() + av.len;
-		c.binbuf_restore(@ptrCast(self), av.len, av.ptr);
+		c.binbuf_restore(@ptrCast(self), @intCast(av.len), @ptrCast(av.ptr));
 		if (self.len() != newsize)
 			return error.OutOfMemory;
 	}
@@ -269,7 +270,7 @@ pub const BinBuf = opaque {
 	}
 
 	pub fn eval(self: *const BinBuf, target: *Pd, av: []Atom) void {
-		c.binbuf_eval(@ptrCast(self), target, @intCast(av.len), av.ptr);
+		c.binbuf_eval(@ptrCast(self), target, @intCast(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn read(
@@ -303,8 +304,8 @@ pub const BinBuf = opaque {
 			return error.BinBufWrite;
 	}
 
-	pub fn resize(self: *BinBuf, newsize: usize) error{OutOfMemory}!void {
-		if (c.binbuf_resize(@ptrCast(self), @intCast(newsize)) == 0)
+	pub fn resize(self: *BinBuf, newsize: uint) error{OutOfMemory}!void {
+		if (c.binbuf_resize(@ptrCast(self), newsize) == 0)
 			return error.OutOfMemory;
 	}
 
@@ -411,24 +412,23 @@ pub const dsp = struct {
 	}
 
 	pub fn addV(perf: *const PerfRoutine, vec: []usize) void {
-		const p: c.t_perfroutine = @ptrCast(perf);
-		c.dsp_addv(p, @intCast(vec.len), vec.ptr);
+		c.dsp_addv(@ptrCast(perf), @intCast(vec.len), vec.ptr);
 	}
 
-	pub fn addPlus(in1: [*]Sample, in2: [*]Sample, out: [*]Sample, n: usize) void {
-		c.dsp_add_plus(in1, in2, out, @intCast(n));
+	pub fn addPlus(in1: [*]Sample, in2: [*]Sample, out: [*]Sample, len: uint) void {
+		c.dsp_add_plus(in1, in2, out, len);
 	}
 
-	pub fn addCopy(in: [*]Sample, out: [*]Sample, n: usize) void {
-		c.dsp_add_copy(in, out, @intCast(n));
+	pub fn addCopy(in: [*]Sample, out: [*]Sample, len: uint) void {
+		c.dsp_add_copy(in, out, len);
 	}
 
-	pub fn addScalarCopy(in: [*]Float, out: [*]Sample, n: usize) void {
-		c.dsp_add_scalarcopy(in, out, @intCast(n));
+	pub fn addScalarCopy(in: [*]Float, out: [*]Sample, len: uint) void {
+		c.dsp_add_scalarcopy(in, out, len);
 	}
 
-	pub fn addZero(out: [*]Sample, n: usize) void {
-		c.dsp_add_zero(out, @intCast(n));
+	pub fn addZero(out: [*]Sample, len: uint) void {
+		c.dsp_add_zero(out, len);
 	}
 };
 
@@ -454,10 +454,10 @@ pub const GArray = opaque {
 		return arr.vec[0..arr.len];
 	}
 
-	pub fn resize(self: *GArray, n: usize) !void {
-		c.garray_resize_long(@ptrCast(self), @intCast(n));
+	pub fn resize(self: *GArray, len: uint) !void {
+		c.garray_resize_long(@ptrCast(self), len);
 		const arr = try self.array();
-		if (arr.len < n) {
+		if (arr.len < len) {
 			return error.OutOfMemory;
 		}
 	}
@@ -846,13 +846,13 @@ pub const Outlet = opaque {
 	}
 
 	pub fn list(self: *Outlet, sym: ?*Symbol, av: []const Atom) void {
-		const argv: [*]c.t_atom = @ptrCast(@constCast(av.ptr));
-		c.outlet_list(@ptrCast(self), @ptrCast(sym), @intCast(av.len), argv);
+		c.outlet_list(
+			@ptrCast(self), @ptrCast(sym), @intCast(av.len), @ptrCast(@constCast(av.ptr)));
 	}
 
 	pub fn anything(self: *Outlet, sym: *Symbol, av: []const Atom) void {
-		const argv: [*]c.t_atom = @ptrCast(@constCast(av.ptr));
-		c.outlet_anything(@ptrCast(self), @ptrCast(sym), @intCast(av.len), argv);
+		c.outlet_anything(
+			@ptrCast(self), @ptrCast(sym), @intCast(av.len), @ptrCast(@constCast(av.ptr)));
 	}
 
 	/// Get the outlet's declared symbol
@@ -1062,7 +1062,7 @@ pub const Resample = extern struct {
 	buffer: [*]Sample = &.{},
 	buf_size: c_uint = 0,
 
-	pub const Converter = enum(c_uint) {
+	pub const Converter = enum(c_int) {
 		zero_padding = 0,
 		zero_order_hold = 1,
 		linear = 2,
@@ -1077,21 +1077,18 @@ pub const Resample = extern struct {
 	}
 
 	pub fn dsp(self: *Resample, in: []Sample, out: []Sample, conv: Converter) void {
-		const ilen: c_int = @intCast(in.len);
-		const olen: c_int = @intCast(out.len);
-		c.resample_dsp(@ptrCast(self), in.ptr, ilen, out.ptr, olen, @intFromEnum(conv));
+		c.resample_dsp(@ptrCast(self),
+			in.ptr, @intCast(in.len), out.ptr, @intCast(out.len), @intFromEnum(conv));
 	}
 
-	pub fn dspFrom(self: *Resample, in: []Sample, out_len: usize, conv: Converter) void {
-		const ilen: c_int = @intCast(in.len);
-		c.resamplefrom_dsp(
-			@ptrCast(self), in.ptr, ilen, @intCast(out_len), @intFromEnum(conv));
+	pub fn dspFrom(self: *Resample, in: []Sample, out_len: uint, conv: Converter) void {
+		c.resamplefrom_dsp(@ptrCast(self),
+			in.ptr, @intCast(in.len), out_len, @intFromEnum(conv));
 	}
 
-	pub fn dspTo(self: *Resample, out: []Sample, in_len: usize, conv: Converter) void {
-		const olen: c_int = @intCast(out.len);
-		c.resampleto_dsp(
-			@ptrCast(self), out.ptr, @intCast(in_len), olen, @intFromEnum(conv));
+	pub fn dspTo(self: *Resample, in_len: uint, out: []Sample, conv: Converter) void {
+		c.resampleto_dsp(@ptrCast(self),
+			out.ptr, in_len, @intCast(out.len), @intFromEnum(conv));
 	}
 };
 
@@ -1120,20 +1117,20 @@ pub const Signal = extern struct {
 	/// signal whose buffer and size will be obtained later via
 	/// `signal_setborrowed()`.
 	pub fn init(
-		length: usize,
-		nchans: usize,
+		length: uint,
+		nchans: uint,
 		samplerate: Float,
 		scalarptr: *Sample
 	) error{OutOfMemory}!*Signal {
-		return if (
-			c.signal_new(@intCast(length), @intCast(nchans), samplerate, scalarptr)
-		) |sig| @ptrCast(sig) else error.OutOfMemory;
+		return if (c.signal_new(length, nchans, samplerate, scalarptr)) |sig|
+			@ptrCast(sig)
+		else error.OutOfMemory;
 	}
 
 	/// Only use this in the context of dsp routines to set number of channels
 	/// on output signal - we assume it's currently a pointer to the null signal.
-	pub fn setMultiOut(sig: **Signal, nchans: usize) void {
-		c.signal_setmultiout(@ptrCast(sig), @intCast(nchans));
+	pub fn setMultiOut(sig: **Signal, nchans: uint) void {
+		c.signal_setmultiout(@ptrCast(sig), nchans);
 	}
 };
 
@@ -1228,24 +1225,24 @@ pub const s = struct {
 // -----------------------------------------------------------------------------
 pub const GuiCallbackFn = fn (*GObj, *GList) callconv(.c) void;
 
-pub fn blockSize() c_uint {
+pub fn blockSize() uint {
 	return @intCast(c.sys_getblksize());
 }
 
 pub const sampleRate = c.sys_getsr;
 
-pub fn inChannels() c_uint {
+pub fn inChannels() uint {
 	return @intCast(c.sys_get_inchannels());
 }
 
-pub fn outChannels() c_uint {
+pub fn outChannels() uint {
 	return @intCast(c.sys_get_outchannels());
 }
 
 /// If some GUI object is having to do heavy computations, it can tell
 /// us to back off from doing more updates by faking a big one itself.
-pub fn pretendGuiBytes(nbytes: usize) void {
-	c.sys_pretendguibytes(@intCast(nbytes));
+pub fn pretendGuiBytes(nbytes: uint) void {
+	c.sys_pretendguibytes(nbytes);
 }
 
 pub fn queueGui(client: *anyopaque, glist: *GList, f: ?*const GuiCallbackFn) void {
@@ -1282,26 +1279,24 @@ pub const queue = struct {
 	}
 };
 
-pub fn hostFontSize(fontsize: usize, zoom: usize) c_uint {
-	return @intCast(c.sys_hostfontsize(@intCast(fontsize), @intCast(zoom)));
+pub fn hostFontSize(fontsize: uint, zoom: uint) uint {
+	return @intCast(c.sys_hostfontsize(fontsize, zoom));
 }
 
-pub fn zoomFontWidth(fontsize: usize, zoom: usize, worst_case: bool) c_uint {
-	const wc: c_int = @intFromBool(worst_case);
-	return @intCast(c.sys_zoomfontwidth(@intCast(fontsize), @intCast(zoom), wc));
+pub fn zoomFontWidth(fontsize: uint, zoom: uint, worst_case: bool) uint {
+	return @intCast(c.sys_zoomfontwidth(fontsize, zoom, @intFromBool(worst_case)));
 }
 
-pub fn zoomFontHeight(fontsize: usize, zoom: usize, worst_case: bool) c_uint {
-	const wc: c_int = @intFromBool(worst_case);
-	return @intCast(c.sys_zoomfontheight(@intCast(fontsize), @intCast(zoom), wc));
+pub fn zoomFontHeight(fontsize: uint, zoom: uint, worst_case: bool) uint {
+	return @intCast(c.sys_zoomfontheight(fontsize, zoom, @intFromBool(worst_case)));
 }
 
-pub fn fontWidth(fontsize: usize) c_uint {
-	return @intCast(c.sys_fontwidth(@intCast(fontsize)));
+pub fn fontWidth(fontsize: uint) uint {
+	return @intCast(c.sys_fontwidth(fontsize));
 }
 
-pub fn fontHeight(fontsize: usize) c_uint {
-	return @intCast(c.sys_fontheight(@intCast(fontsize)));
+pub fn fontHeight(fontsize: uint) uint {
+	return @intCast(c.sys_fontheight(fontsize));
 }
 
 pub fn isAbsolutePath(dir: [*:0]const u8) bool {
@@ -1430,12 +1425,12 @@ pub const mayer = struct {
 		c.mayer_fht(@ptrCast(fz.ptr), @intCast(fz.len));
 	}
 
-	pub fn fft(n: usize, real: [*]Sample, imag: [*]Sample) void {
-		c.mayer_fft(@intCast(n), real, imag);
+	pub fn fft(real: [*]Sample, imag: [*]Sample, len: uint) void {
+		c.mayer_fft(len, real, imag);
 	}
 
-	pub fn ifft(n: usize, real: [*]Sample, imag: [*]Sample) void {
-		c.mayer_ifft(@intCast(n), real, imag);
+	pub fn ifft(real: [*]Sample, imag: [*]Sample, len: uint) void {
+		c.mayer_ifft(len, real, imag);
 	}
 
 	pub fn realfft(real: []Sample) void {
