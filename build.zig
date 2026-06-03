@@ -61,7 +61,7 @@ pub fn extension(
 		else                       @tagName(arch)
 		,
 		float_size,
-		target.result.dynamicLibSuffix(),
+		if (os.isDarwin()) ".so" else target.result.dynamicLibSuffix(),
 	});
 }
 
