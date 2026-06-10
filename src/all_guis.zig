@@ -198,7 +198,7 @@ pub const Gui = extern struct {
 		c.iemgui_save(@ptrCast(self), @ptrCast(srl), @ptrCast(bflcol));
 	}
 
-	/// Inform GUIs that glist's zoom is about to change.  The glist will
+	/// Inform GUIs that glist's zoom is about to change. The glist will
 	/// take care of x,y locations but we have to adjust width and height.
 	pub fn zoom(self: *Gui, f: Float) void {
 		c.iemgui_zoom(@ptrCast(self), f);

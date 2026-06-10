@@ -257,7 +257,7 @@ pub const BinBuf = opaque {
 	}
 
 	/// Supply atoms to a binbuf from a message, making the opposite changes
-	/// from `join`.  The symbol ";" goes to a semicolon, etc.
+	/// from `join`. The symbol ";" goes to a semicolon, etc.
 	pub fn restore(self: *BinBuf, av: []Atom) error{OutOfMemory}!void {
 		const newsize = self.len() + av.len;
 		c.binbuf_restore(@ptrCast(self), @intCast(av.len), @ptrCast(av.ptr));
@@ -390,7 +390,7 @@ pub const TimeUnit = extern struct {
 	}
 };
 
-/// Get current logical time.  We don't specify what units this is in;
+/// Get current logical time. We don't specify what units this is in;
 /// use `timeSince()` to measure intervals from time of this call.
 pub const time = c.clock_getlogicaltime;
 
@@ -804,9 +804,9 @@ pub const Object = extern struct {
 	pub const inletSignal = Inlet.initSignal;
 	pub const inletPointer = Inlet.initPointer;
 
-	/// connect an outlet of one object to an inlet of another.  The receiving
-   /// "pd" is usually a patchable object, but this may be used to add a
-   /// non-patchable pd to an outlet by specifying the 0th inlet.
+	/// connect an outlet of one object to an inlet of another. The receiving
+	/// "pd" is usually a patchable object, but this may be used to add a
+	/// non-patchable pd to an outlet by specifying the 0th inlet.
 	pub fn connect(
 		self: *Object, outno: c_int,
 		sink: *Object, inno: c_int,
@@ -1309,7 +1309,7 @@ pub fn currentDir() ?*Symbol {
 }
 
 /// DSP can be suspended before, and resumed after, operations which
-/// might affect the DSP chain.  For example, we suspend before loading and
+/// might affect the DSP chain. For example, we suspend before loading and
 /// resume afterward, so that DSP doesn't get resorted for every DSP object
 /// in the patch.
 pub fn suspendDsp() bool {
@@ -1339,7 +1339,7 @@ pub fn dspState() bool {
 // ----------------------------------- Value -----------------------------------
 // -----------------------------------------------------------------------------
 pub const value = struct {
-	/// Get a pointer to a named floating-point variable.  The variable
+	/// Get a pointer to a named floating-point variable. The variable
 	/// belongs to a `vcommon` object, which is created if necessary.
 	pub fn from(name: *Symbol) *Float {
 		return c.value_get(@ptrCast(name));
@@ -1383,7 +1383,7 @@ pub const font_weight: [*:0]u8 = @extern([*:0]u8, .{ .name = "sys_fontweight" })
 /// Get a number unique to the (clock, MIDI, GUI, etc.) event we're on
 pub const eventNumber = c.sched_geteventno;
 
-/// sys_idlehook is a hook the user can fill in to grab idle time.  Return
+/// sys_idlehook is a hook the user can fill in to grab idle time. Return
 /// nonzero if you actually used the time; otherwise we're really really idle and
 /// will now sleep.
 pub extern var sys_idlehook: c.sys_idlehook;

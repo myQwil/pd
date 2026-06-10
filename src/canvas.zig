@@ -537,7 +537,7 @@ pub const GList = extern struct {
 
 	/// Utility function to read a file, looking first down the canvas's search
 	/// path (set with "declare" objects in the patch and recursively in calling
-	/// patches), then down the system one.  The filename is the concatenation of
+	/// patches), then down the system one. The filename is the concatenation of
 	/// `name` and `ext`. `name` may be absolute, or may be relative with
 	/// slashes. If anything can be opened, the true directory
 	/// is put in the buffer dirresult (provided by caller), which should
