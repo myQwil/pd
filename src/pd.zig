@@ -104,6 +104,9 @@ pub const Atom = extern struct {
 	pub inline fn pointer(p: *GPointer) Atom {
 		return .{ .type = .pointer, .w = .{ .gpointer = p } };
 	}
+
+	pub const semi: Atom = .{ .type = .semi, .w = .{ .index = 0 } };
+	pub const comma: Atom = .{ .type = .comma, .w = .{ .index = 0 } };
 };
 
 pub const ArgError = error {
