@@ -52,7 +52,7 @@ pub const Atom = extern struct {
 	w: Word,
 
 	pub const Type = enum(c_uint) {
-		none,
+		none = 0,
 		float,
 		symbol,
 		pointer,
