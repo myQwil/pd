@@ -105,6 +105,14 @@ pub const Atom = extern struct {
 		return .{ .type = .pointer, .w = .{ .gpointer = p } };
 	}
 
+	pub inline fn dollar(n: c_int) Atom {
+		return .{ .type = .dollar, .w = .{ .index = n } };
+	}
+
+	pub inline fn dollsym(sym: *Symbol) Atom {
+		return .{ .type = .dollsym, .w = .{ .symbol = sym } };
+	}
+
 	pub const semi: Atom = .{ .type = .semi, .w = .{ .index = 0 } };
 	pub const comma: Atom = .{ .type = .comma, .w = .{ .index = 0 } };
 };
