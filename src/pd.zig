@@ -13,6 +13,15 @@ pub const uint = @Int(.unsigned, @bitSizeOf(c_int) - 1);
 pub const Float = c.t_float;
 pub const Sample = Float;
 
+/// quick int cast for signed ints guaranteed to be >= 0
+pub inline fn uFromI(i: c_int) uint {
+	return @truncate(@as(c_uint, @bitCast(i)));
+}
+
+pub inline fn iFromU(u: usize) c_int {
+	return @as(uint, @truncate(u));
+}
+
 pub fn Rect(T: type) type { return struct {
 	/// top-left
 	p1: @Vector(2, T),
@@ -90,7 +99,7 @@ pub const Atom = extern struct {
 	}
 
 	pub fn bufPrint(self: *const Atom, buf: []u8) void {
-		c.atom_string(@ptrCast(self), buf.ptr, @intCast(buf.len));
+		c.atom_string(@ptrCast(self), buf.ptr, @truncate(buf.len));
 	}
 
 	pub inline fn float(f: Float) Atom {
@@ -201,7 +210,7 @@ pub const BinBuf = opaque {
 	}
 
 	pub fn len(self: *const BinBuf) uint {
-		return @intCast(c.binbuf_getnatom(@ptrCast(self)));
+		return uFromI(c.binbuf_getnatom(@ptrCast(self)));
 	}
 
 	pub fn getVec(self: *const BinBuf) [*]Atom {
@@ -223,7 +232,7 @@ pub const BinBuf = opaque {
 		var ptr: [*]u8 = undefined;
 		var n: c_int = undefined;
 		c.binbuf_gettext(@ptrCast(self), &ptr, &n);
-		return ptr[0..@intCast(n)];
+		return ptr[0..uFromI(n)];
 	}
 
 	pub fn clear(self: *BinBuf) void {
@@ -232,7 +241,7 @@ pub const BinBuf = opaque {
 
 	pub fn add(self: *BinBuf, av: []const Atom) error{OutOfMemory}!void {
 		const newsize = self.len() + av.len;
-		c.binbuf_add(@ptrCast(self), @intCast(av.len), @ptrCast(av.ptr));
+		c.binbuf_add(@ptrCast(self), iFromU(av.len), @ptrCast(av.ptr));
 		if (self.len() != newsize)
 			return error.OutOfMemory;
 	}
@@ -271,7 +280,7 @@ pub const BinBuf = opaque {
 	/// from `join`. The symbol ";" goes to a semicolon, etc.
 	pub fn restore(self: *BinBuf, av: []Atom) error{OutOfMemory}!void {
 		const newsize = self.len() + av.len;
-		c.binbuf_restore(@ptrCast(self), @intCast(av.len), @ptrCast(av.ptr));
+		c.binbuf_restore(@ptrCast(self), iFromU(av.len), @ptrCast(av.ptr));
 		if (self.len() != newsize)
 			return error.OutOfMemory;
 	}
@@ -281,7 +290,7 @@ pub const BinBuf = opaque {
 	}
 
 	pub fn eval(self: *const BinBuf, target: *Pd, av: []Atom) void {
-		c.binbuf_eval(@ptrCast(self), target, @intCast(av.len), @ptrCast(av.ptr));
+		c.binbuf_eval(@ptrCast(self), target, iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn read(
@@ -340,7 +349,7 @@ pub fn realizeDollSym(
 	tonew: bool
 ) error{RealizeDollSym}!*Symbol {
 	return c.binbuf_realizedollsym(
-		@ptrCast(sym), @intCast(av.len), @ptrCast(av.ptr), @intFromBool(tonew),
+		@ptrCast(sym), iFromU(av.len), @ptrCast(av.ptr), @intFromBool(tonew),
 	) orelse error.RealizeDollSym;
 }
 
@@ -419,11 +428,11 @@ pub const dsp = struct {
 
 	pub fn add(perf: *const PerfRoutine, args: anytype) void {
 		const p: c.t_perfroutine = @ptrCast(perf);
-		@call(.auto, c.dsp_add, .{ p, @as(c_int, @intCast(args.len)) } ++ args);
+		@call(.auto, c.dsp_add, .{ p, @as(c_int, iFromU(args.len)) } ++ args);
 	}
 
 	pub fn addV(perf: *const PerfRoutine, vec: []usize) void {
-		c.dsp_addv(@ptrCast(perf), @intCast(vec.len), vec.ptr);
+		c.dsp_addv(@ptrCast(perf), iFromU(vec.len), vec.ptr);
 	}
 
 	pub fn addPlus(in1: [*]Sample, in2: [*]Sample, out: [*]Sample, len: uint) void {
@@ -489,7 +498,7 @@ pub const GArray = opaque {
 		var len: c_int = undefined;
 		var ptr: [*]Word = undefined;
 		return if (c.garray_getfloatwords(@ptrCast(self), &len, @ptrCast(&ptr)) != 0)
-			ptr[0..@intCast(len)]
+			ptr[0..uFromI(len)]
 		else error.GArrayBadTemplate;
 	}
 };
@@ -772,7 +781,7 @@ pub const Object = extern struct {
 	/// Before you call this check that the object doesn't have a more
 	/// specific way to handle lists.
 	pub fn list(self: *Object, sym: *Symbol, av: []Atom) void {
-		c.obj_list(@ptrCast(self), @ptrCast(sym), @intCast(av.len), @ptrCast(av.ptr));
+		c.obj_list(@ptrCast(self), @ptrCast(sym), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn saveFormat(self: *const Object, binbuf: *BinBuf) void {
@@ -788,17 +797,15 @@ pub const Object = extern struct {
 	pub fn pos(self: *const Object, glist: *const GList) @Vector(2, c_int) {
 		const FVec2 = @Vector(2, Float);
 		const IVec2 = @Vector(2, c_int);
-		const pix: IVec2 = @intCast(@as(@Vector(2, c_short), self.pix));
+		const pix: IVec2 = self.pix;
 
 		if (glist.flags.havewindow or !glist.flags.isgraph) {
-			const zoom: c_int = @intCast(glist.zoom);
-			return pix * IVec2{ zoom, zoom };
+			return pix * IVec2{ glist.zoom, glist.zoom };
 		}
 		const rect: Rect(Float) = .{ .p1 = glist.p1, .p2 = glist.p2 };
 		if (glist.flags.goprect) {
-			const zoom: c_int = @intCast(glist.zoom);
 			const p1: IVec2 = @intFromFloat(glist.toPixels(rect.p1));
-			return p1 + IVec2{ zoom, zoom } * (pix - glist.margin);
+			return p1 + IVec2{ glist.zoom, glist.zoom } * (pix - glist.margin);
 		}
 		const fpix: FVec2 = @floatFromInt(pix);
 		const screen_size: FVec2 = @floatFromInt((Rect(c_int){
@@ -858,12 +865,12 @@ pub const Outlet = opaque {
 
 	pub fn list(self: *Outlet, sym: ?*Symbol, av: []const Atom) void {
 		c.outlet_list(
-			@ptrCast(self), @ptrCast(sym), @intCast(av.len), @ptrCast(@constCast(av.ptr)));
+			@ptrCast(self), @ptrCast(sym), iFromU(av.len), @ptrCast(@constCast(av.ptr)));
 	}
 
 	pub fn anything(self: *Outlet, sym: *Symbol, av: []const Atom) void {
 		c.outlet_anything(
-			@ptrCast(self), @ptrCast(sym), @intCast(av.len), @ptrCast(@constCast(av.ptr)));
+			@ptrCast(self), @ptrCast(sym), iFromU(av.len), @ptrCast(@constCast(av.ptr)));
 	}
 
 	/// Get the outlet's declared symbol
@@ -924,15 +931,15 @@ pub const Pd = extern struct {
 	}
 
 	pub fn list(self: *Pd, sym: ?*Symbol, av: []const Atom) void {
-		c.pd_list(@ptrCast(self), @ptrCast(sym), @intCast(av.len), @ptrCast(av.ptr));
+		c.pd_list(@ptrCast(self), @ptrCast(sym), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn anything(self: *Pd, sym: *Symbol, av: []const Atom) void {
-		c.pd_anything(@ptrCast(self), @ptrCast(sym), @intCast(av.len), @ptrCast(av.ptr));
+		c.pd_anything(@ptrCast(self), @ptrCast(sym), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn typedMess(self: *Pd, sym: *Symbol, av: []const Atom) void {
-		c.pd_typedmess(@ptrCast(self), @ptrCast(sym), @intCast(av.len), @ptrCast(av.ptr));
+		c.pd_typedmess(@ptrCast(self), @ptrCast(sym), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	/// Convenience routine giving a stdarg interface to `typedmess()`.
@@ -945,7 +952,7 @@ pub const Pd = extern struct {
 	}
 
 	pub fn forwardMess(self: *Pd, av: []Atom) void {
-		c.pd_forwardmess(@ptrCast(self), @intCast(av.len), @ptrCast(av.ptr));
+		c.pd_forwardmess(@ptrCast(self), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	/// Checks that a pd is indeed a patchable object, and returns
@@ -1015,7 +1022,7 @@ pub const post = struct {
 	pub const float = c.postfloat;
 
 	pub fn atom(av: []const Atom) void {
-		c.postatom(@intCast(av.len), @ptrCast(av.ptr));
+		c.postatom(iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn bug(fmt: [*:0]const u8, args: anytype) void {
@@ -1089,17 +1096,17 @@ pub const Resample = extern struct {
 
 	pub fn dsp(self: *Resample, in: []Sample, out: []Sample, conv: Converter) void {
 		c.resample_dsp(@ptrCast(self),
-			in.ptr, @intCast(in.len), out.ptr, @intCast(out.len), @intFromEnum(conv));
+			in.ptr, iFromU(in.len), out.ptr, iFromU(out.len), @intFromEnum(conv));
 	}
 
 	pub fn dspFrom(self: *Resample, in: []Sample, out_len: uint, conv: Converter) void {
 		c.resamplefrom_dsp(@ptrCast(self),
-			in.ptr, @intCast(in.len), out_len, @intFromEnum(conv));
+			in.ptr, iFromU(in.len), out_len, @intFromEnum(conv));
 	}
 
 	pub fn dspTo(self: *Resample, in_len: uint, out: []Sample, conv: Converter) void {
 		c.resampleto_dsp(@ptrCast(self),
-			out.ptr, in_len, @intCast(out.len), @intFromEnum(conv));
+			out.ptr, in_len, iFromU(out.len), @intFromEnum(conv));
 	}
 };
 
@@ -1237,17 +1244,17 @@ pub const s = struct {
 pub const GuiCallbackFn = fn (*GObj, *GList) callconv(.c) void;
 
 pub fn blockSize() uint {
-	return @intCast(c.sys_getblksize());
+	return uFromI(c.sys_getblksize());
 }
 
 pub const sampleRate = c.sys_getsr;
 
 pub fn inChannels() uint {
-	return @intCast(c.sys_get_inchannels());
+	return uFromI(c.sys_get_inchannels());
 }
 
 pub fn outChannels() uint {
-	return @intCast(c.sys_get_outchannels());
+	return uFromI(c.sys_get_outchannels());
 }
 
 /// If some GUI object is having to do heavy computations, it can tell
@@ -1291,23 +1298,23 @@ pub const queue = struct {
 };
 
 pub fn hostFontSize(fontsize: uint, zoom: uint) uint {
-	return @intCast(c.sys_hostfontsize(fontsize, zoom));
+	return uFromI(c.sys_hostfontsize(fontsize, zoom));
 }
 
 pub fn zoomFontWidth(fontsize: uint, zoom: uint, worst_case: bool) uint {
-	return @intCast(c.sys_zoomfontwidth(fontsize, zoom, @intFromBool(worst_case)));
+	return uFromI(c.sys_zoomfontwidth(fontsize, zoom, @intFromBool(worst_case)));
 }
 
 pub fn zoomFontHeight(fontsize: uint, zoom: uint, worst_case: bool) uint {
-	return @intCast(c.sys_zoomfontheight(fontsize, zoom, @intFromBool(worst_case)));
+	return uFromI(c.sys_zoomfontheight(fontsize, zoom, @intFromBool(worst_case)));
 }
 
 pub fn fontWidth(fontsize: uint) uint {
-	return @intCast(c.sys_fontwidth(fontsize));
+	return uFromI(c.sys_fontwidth(fontsize));
 }
 
 pub fn fontHeight(fontsize: uint) uint {
-	return @intCast(c.sys_fontheight(fontsize));
+	return uFromI(c.sys_fontheight(fontsize));
 }
 
 pub fn isAbsolutePath(dir: [*:0]const u8) bool {
@@ -1433,7 +1440,7 @@ pub fn scalarCopyPerf8(args: [*]usize) *usize {
 
 pub const mayer = struct {
 	pub fn fht(fz: []Sample) void {
-		c.mayer_fht(@ptrCast(fz.ptr), @intCast(fz.len));
+		c.mayer_fht(@ptrCast(fz.ptr), iFromU(fz.len));
 	}
 
 	pub fn fft(real: [*]Sample, imag: [*]Sample, len: uint) void {
@@ -1445,16 +1452,16 @@ pub const mayer = struct {
 	}
 
 	pub fn realfft(real: []Sample) void {
-		c.mayer_realfft(@intCast(real.len), real.ptr);
+		c.mayer_realfft(iFromU(real.len), real.ptr);
 	}
 
 	pub fn realifft(real: []Sample) void {
-		c.mayer_realifft(@intCast(real.len), real.ptr);
+		c.mayer_realifft(iFromU(real.len), real.ptr);
 	}
 };
 
 pub fn fft(buf: []Float, inverse: bool) void {
-	c.pd_fft(buf.ptr, @intCast(buf.len), @intFromBool(inverse));
+	c.pd_fft(buf.ptr, iFromU(buf.len), @intFromBool(inverse));
 }
 
 const ushift = @Int(
@@ -1462,7 +1469,7 @@ const ushift = @Int(
 	@bitSizeOf(usize) - 1 - @clz(@as(usize, @bitSizeOf(usize))),
 );
 pub fn ulog2(n: usize) ?ushift {
-	return if (n == 0) null else @intCast(@bitSizeOf(usize) - 1 - @clz(n));
+	return if (n == 0) null else @truncate(@bitSizeOf(usize) - 1 - @clz(n));
 }
 
 test ulog2 {

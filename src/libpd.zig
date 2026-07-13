@@ -5,6 +5,8 @@ pub const ulong = @Int(.unsigned, @bitSizeOf(c_long) - 1);
 const uint = pd.uint;
 const Atom = pd.Atom;
 const Instance = pd.Instance;
+const uFromI = pd.uFromI;
+const iFromU = pd.iFromU;
 
 const std = @import("std");
 const testing = std.testing;
@@ -83,7 +85,7 @@ pub const Patch = struct {
 	pub fn fromFile(name: [*:0]const u8, dir: [*:0]const u8) error{OpenFile}!Patch {
 		return if (c.libpd_openfile(name, dir)) |file| Patch{
 			.handle = file,
-			.dollar_zero = @intCast(c.libpd_getdollarzero(file)),
+			.dollar_zero = uFromI(c.libpd_getdollarzero(file)),
 		} else error.OpenFile;
 	}
 
@@ -107,7 +109,7 @@ pub fn computeAudio(state: bool) void {
 
 /// Return pd's fixed block size: the number of sample frames per 1 pd tick.
 pub fn blockSize() uint {
-	return @intCast(c.libpd_blocksize());
+	return uFromI(c.libpd_blocksize());
 }
 
 pub const ProcessError = error{ProcessError};
@@ -220,7 +222,7 @@ pub fn processRawDouble(
 /// Get the size of an array by name.
 pub fn arraySize(name: [*:0]const u8) error{ArrayNotFound}!uint {
 	const size = c.libpd_arraysize(name);
-	return if (size < 0) error.ArrayNotFound else @intCast(size);
+	return if (size < 0) error.ArrayNotFound else uFromI(size);
 }
 
 /// (re)size an array by name; sizes <= 0 are clipped to 1.
@@ -236,7 +238,7 @@ pub const ArrayError = error{ArrayNotFound, ArrayOutOfBounds};
 ///
 /// Note: performs no bounds checking on `dest`.
 pub fn readArray(name: [*:0]const u8, offset: uint, dest: []f32) ArrayError!void {
-	return switch (c.libpd_read_array(dest.ptr, name, offset, @intCast(dest.len))) {
+	return switch (c.libpd_read_array(dest.ptr, name, offset, iFromU(dest.len))) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
@@ -247,7 +249,7 @@ pub fn readArray(name: [*:0]const u8, offset: uint, dest: []f32) ArrayError!void
 ///
 /// Note: performs no bounds checking on `src`.
 pub fn writeArray(name: [*:0]const u8, offset: uint, src: []const f32) ArrayError!void {
-	return switch (c.libpd_write_array(name, offset, src.ptr, @intCast(src.len))) {
+	return switch (c.libpd_write_array(name, offset, src.ptr, iFromU(src.len))) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
@@ -262,7 +264,7 @@ pub fn writeArray(name: [*:0]const u8, offset: uint, src: []const f32) ArrayErro
 ///
 /// Double-precision variant of libpd_read_array().
 pub fn readArrayDouble(name: [*:0]const u8, offset: uint, dest: []f64) ArrayError!void {
-	return switch (c.libpd_read_array_double(dest.ptr, name, offset, @intCast(dest.len))) {
+	return switch (c.libpd_read_array_double(dest.ptr, name, offset, iFromU(dest.len))) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
@@ -280,7 +282,7 @@ pub fn writeArrayDouble(
 	name: [*:0]const u8, offset: uint,
 	src: []const f64,
 ) ArrayError!void {
-	return switch (c.libpd_write_array_double(name, offset, src.ptr, @intCast(src.len))) {
+	return switch (c.libpd_write_array_double(name, offset, src.ptr, iFromU(src.len))) {
 		-1 => error.ArrayNotFound,
 		-2 => error.ArrayOutOfBounds,
 		else => {},
@@ -424,13 +426,13 @@ pub fn setSymbol(atom: *Atom, s: [*:0]const u8) void {
 ///     sendList("foo", &v);
 /// ```
 pub fn sendList(recv: [*:0]const u8, av: []Atom) SendError!void {
-	if (c.libpd_list(recv, @intCast(av.len), @ptrCast(av.ptr)) != 0) {
+	if (c.libpd_list(recv, iFromU(av.len), @ptrCast(av.ptr)) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
 
 pub fn sendMessage(recv: [*:0]const u8, msg: [*:0]const u8, av: []Atom) SendError!void {
-	if (c.libpd_message(recv, msg, @intCast(av.len), @ptrCast(av.ptr)) != 0) {
+	if (c.libpd_message(recv, msg, iFromU(av.len), @ptrCast(av.ptr)) != 0) {
 		return error.ReceiverNotFound;
 	}
 }
@@ -584,62 +586,62 @@ pub fn getSymbol(atom: *Atom) [*:0]const u8 {
 /// Channel is 0-indexed, pitch is 0-127, and velocity is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
 /// Note: there is no note off message, send a note on with velocity = 0 instead.
-pub fn sendNoteOn(channel: u32, pitch: u7, velocity: u7) void {
-	_ = c.libpd_noteon(@intCast(channel), @intCast(pitch), @intCast(velocity));
+pub fn sendNoteOn(channel: uint, pitch: u7, velocity: u7) void {
+	_ = c.libpd_noteon(channel, pitch, velocity);
 }
 
 /// Send a MIDI control change message to [ctlin] objects.
 /// Channel is 0-indexed, controller is 0-127, and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
-pub fn sendControlChange(channel: u32, controller: u7, value: u7) void {
-	_ = c.libpd_controlchange(@intCast(channel), @intCast(controller), @intCast(value));
+pub fn sendControlChange(channel: uint, controller: u7, value: u7) void {
+	_ = c.libpd_controlchange(channel, controller, value);
 }
 
 /// Send a MIDI program change message to [pgmin] objects.
 /// Channel is 0-indexed and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
-pub fn sendProgramChange(channel: u32, value: u7) void {
-	_ = c.libpd_programchange(@intCast(channel), @intCast(value));
+pub fn sendProgramChange(channel: uint, value: u7) void {
+	_ = c.libpd_programchange(channel, value);
 }
 
 /// Send a MIDI pitch bend message to [bendin] objects.
 /// Channel is 0-indexed and value is -8192-8192.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
 /// Note: [bendin] outputs 0-16383 while [bendout] accepts -8192-8192.
-pub fn sendPitchBend(channel: u32, value: i14) void {
-	_ = c.libpd_pitchbend(@intCast(channel), @intCast(value));
+pub fn sendPitchBend(channel: uint, value: i14) void {
+	_ = c.libpd_pitchbend(channel, value);
 }
 
 /// Send a MIDI after touch message to [touchin] objects.
 /// Channel is 0-indexed and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
-pub fn sendAftertouch(channel: u32, value: u7) void {
-	_ = c.libpd_aftertouch(@intCast(channel), @intCast(value));
+pub fn sendAftertouch(channel: uint, value: u7) void {
+	_ = c.libpd_aftertouch(channel, value);
 }
 
 /// Send a MIDI poly after touch message to [polytouchin] objects.
 /// Channel is 0-indexed, pitch is 0-127, and value is 0-127.
 /// Channels encode MIDI ports via: libpd_channel = pd_channel + 16 * pd_port.
-pub fn sendPolyAftertouch(channel: u32, pitch: u7, value: u7) void {
-	_ = c.libpd_polyaftertouch(@intCast(channel), @intCast(pitch), @intCast(value));
+pub fn sendPolyAftertouch(channel: uint, pitch: u7, value: u7) void {
+	_ = c.libpd_polyaftertouch(channel, pitch, value);
 }
 
 /// Send a raw MIDI byte to [midiin] objects.
 /// Port is 0-indexed and byte is 0-256.
 pub fn sendMidiByte(port: u12, byte: u8) void {
-	_ = c.libpd_midibyte(@intCast(port), @intCast(byte));
+	_ = c.libpd_midibyte(port, byte);
 }
 
 /// Send a raw MIDI byte to [sysexin] objects.
 /// Port is 0-indexed and byte is 0-256.
 pub fn sendSysex(port: u12, byte: u8) void {
-	_ = c.libpd_sysex(@intCast(port), @intCast(byte));
+	_ = c.libpd_sysex(port, byte);
 }
 
 /// Send a raw MIDI byte to [realtimein] objects.
 /// Port is 0-indexed and byte is 0-256.
 pub fn sendSysRealTime(port: u12, byte: u8) void {
-	_ = c.libpd_sysrealtime(@intCast(port), @intCast(byte));
+	_ = c.libpd_sysrealtime(port, byte);
 }
 
 
@@ -802,7 +804,7 @@ pub fn mainInstance() *Instance {
 /// get the number of pd instances, including the main instance
 /// returns number or 1 when libpd is not compiled with PDINSTANCE
 pub fn numInstances() uint {
-	return @intCast(c.libpd_num_instances());
+	return uFromI(c.libpd_num_instances());
 }
 
 /// per-instance data free hook signature

@@ -17,6 +17,8 @@ const Scalar = m.Scalar;
 const Symbol = m.Symbol;
 const Word = m.Word;
 const uint = m.uint;
+const uFromI = m.uFromI;
+const iFromU = m.iFromU;
 
 pub const io_width = 7;
 pub const i_height = 3;
@@ -232,7 +234,7 @@ pub const GList = extern struct {
 	env: ?*Environment = null,
 	flags: Flags = .{},
 	/// zoom factor (integer zoom-in only)
-	zoom: c_uint = 0,
+	zoom: c_int = 0,
 	/// private data
 	privatedata: ?*anyopaque = null,
 
@@ -373,19 +375,19 @@ pub const GList = extern struct {
 
 	/// Nominal font size in points, e.g., 10
 	pub fn getFont(self: *GList) uint {
-		return @intCast(c.glist_getfont(@ptrCast(self)));
+		return uFromI(c.glist_getfont(@ptrCast(self)));
 	}
 
 	pub fn fontWidth(self: *GList) uint {
-		return @intCast(c.glist_fontwidth(@ptrCast(self)));
+		return uFromI(c.glist_fontwidth(@ptrCast(self)));
 	}
 
 	pub fn fontHeight(self: *GList) uint {
-		return @intCast(c.glist_fontheight(@ptrCast(self)));
+		return uFromI(c.glist_fontheight(@ptrCast(self)));
 	}
 
 	pub fn getZoom(self: *GList) uint {
-		return @intCast(c.glist_getzoom(@ptrCast(self)));
+		return uFromI(c.glist_getzoom(@ptrCast(self)));
 	}
 
 	pub fn sort(self: *GList) void {
@@ -451,7 +453,7 @@ pub const GList = extern struct {
 
 	/// Call `glist_addglist()` from a Pd message.
 	pub fn gList(self: *GList, s: *Symbol, av: []Atom) void {
-		c.glist_glist(@ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
+		c.glist_glist(@ptrCast(self), @ptrCast(s), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	/// Make a new glist and add it to this glist.
@@ -519,7 +521,7 @@ pub const GList = extern struct {
 	}
 
 	pub fn makeFilename(self: *const GList, file: [*:0]const u8, buf: []u8) void {
-		c.canvas_makefilename(@ptrCast(self), file, buf.ptr, @intCast(buf.len));
+		c.canvas_makefilename(@ptrCast(self), file, buf.ptr, iFromU(buf.len));
 	}
 
 	pub fn dir(self: *const GList) *Symbol {
@@ -558,7 +560,7 @@ pub const GList = extern struct {
 	) error{GListOpenFail}!uint {
 		const fd = c.canvas_open(
 			@ptrCast(self), name, ext, dirresult, nameresult, size, @intFromBool(bin));
-		return if (fd < 0) error.GListOpenFail else @intCast(fd);
+		return if (fd < 0) error.GListOpenFail else uFromI(fd);
 	}
 
 	pub fn sampleRate(self: *GList) Float {
@@ -566,18 +568,18 @@ pub const GList = extern struct {
 	}
 
 	pub fn signalLength(self: *GList) uint {
-		return @intCast(c.canvas_getsignallength(@ptrCast(self)));
+		return uFromI(c.canvas_getsignallength(@ptrCast(self)));
 	}
 
 	pub fn setArgs(av: []const Atom) void {
-		c.canvas_setargs(@intCast(av.len), @ptrCast(av.ptr));
+		c.canvas_setargs(iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn args() []Atom {
 		var ac: c_int = undefined;
 		var av: [*]c.t_atom = undefined;
 		c.canvas_getargs(&ac, &av);
-		return @ptrCast(av[0..@intCast(ac)]);
+		return @ptrCast(av[0..uFromI(ac)]);
 	}
 
 	pub fn setUndoState(
@@ -585,8 +587,8 @@ pub const GList = extern struct {
 		undo: []const Atom, redo: []const Atom,
 	) void {
 		c.pd_undo_set_objectstate(@ptrCast(self), @ptrCast(x), @ptrCast(s),
-			@intCast(undo.len), @ptrCast(@constCast(undo.ptr)),
-			@intCast(redo.len), @ptrCast(@constCast(redo.ptr)),
+			iFromU(undo.len), @ptrCast(@constCast(undo.ptr)),
+			iFromU(redo.len), @ptrCast(@constCast(redo.ptr)),
 		);
 	}
 

@@ -10,6 +10,7 @@ const Symbol = m.Symbol;
 const Object = m.Object;
 const GList = cnv.GList;
 const GObj = m.GObj;
+const iFromU = m.iFromU;
 
 pub const min_size = 8;
 pub const max_size = 1000;
@@ -219,15 +220,15 @@ pub const Gui = extern struct {
 	}
 
 	pub fn delta(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
-		c.iemgui_delta(x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
+		c.iemgui_delta(x, @ptrCast(self), @ptrCast(s), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn pos(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
-		c.iemgui_pos(x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
+		c.iemgui_pos(x, @ptrCast(self), @ptrCast(s), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn color(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
-		c.iemgui_color(x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
+		c.iemgui_color(x, @ptrCast(self), @ptrCast(s), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn send(self: *Gui, x: *anyopaque, s: *Symbol) void {
@@ -244,12 +245,12 @@ pub const Gui = extern struct {
 
 	pub fn labelPos(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
 		c.iemgui_label_pos(
-			x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
+			x, @ptrCast(self), @ptrCast(s), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub fn labelFont(self: *Gui, x: *anyopaque, s: *Symbol, av: []const Atom) void {
 		c.iemgui_label_font(
-			x, @ptrCast(self), @ptrCast(s), @intCast(av.len), @ptrCast(av.ptr));
+			x, @ptrCast(self), @ptrCast(s), iFromU(av.len), @ptrCast(av.ptr));
 	}
 
 	pub const SendToGui = enum(c_int) {
@@ -305,7 +306,7 @@ pub const Gui = extern struct {
 	}
 
 	pub fn setDialogAtoms(self: *Gui, argv: []Atom) void {
-		c.iemgui_setdialogatoms(@ptrCast(self), @intCast(argv.len), @ptrCast(argv.ptr));
+		c.iemgui_setdialogatoms(@ptrCast(self), iFromU(argv.len), @ptrCast(argv.ptr));
 	}
 
 	pub const DialogBitMask = packed struct(u2) {
@@ -314,8 +315,8 @@ pub const Gui = extern struct {
 	};
 
 	pub fn dialog(self: *Gui, srl: [*]*Symbol, av: []const Atom) DialogBitMask {
-		return @bitCast(@as(u2, @intCast(c.iemgui_dialog(
-			@ptrCast(self), @ptrCast(srl), @intCast(av.len), @ptrCast(av.ptr)))));
+		return @bitCast(@as(u2, @truncate(@as(c_uint, @bitCast(c.iemgui_dialog(
+			@ptrCast(self), @ptrCast(srl), iFromU(av.len), @ptrCast(av.ptr)))))));
 	}
 
 	pub fn init(cls: *Class) error{GuiInitFail}!*Gui {

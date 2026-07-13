@@ -46,10 +46,10 @@ pub fn printStruct(T: type, name: [:0]const u8) void {
 	};
 	m.post.do("[%s]: %s", .{ name.ptr, @typeName(T) });
 	inline for (fields) |field| {
-		m.post.do("    %s: %s -> %u", .{
+		m.post.do("    %s: %s -> %zu", .{
 			field.name.ptr,
 			@typeName(field.type),
-			@as(c_uint, @intCast(field.offset)),
+			field.offset,
 		});
 	}
 }
