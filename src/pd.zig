@@ -748,7 +748,7 @@ pub const Object = extern struct {
 	width: c_ushort = 0,
 	bf: packed struct(BitFieldType) {
 		type: Type = .text,
-		_unused: @Int(.unsigned, @bitSizeOf(BitFieldType) - 2) = 0,
+		_unused: @Int(.unsigned, @bitSizeOf(BitFieldType) - @bitSizeOf(Type)) = 0,
 	} = .{},
 
 	const BitFieldType = if (builtin.os.tag == .windows) c_uint else u8;
