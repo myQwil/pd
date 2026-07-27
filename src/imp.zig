@@ -131,7 +131,7 @@ pub const Class = extern struct {
 		/// don't promote the main (left) inlet to signals
 		no_promote_left: bool = false,
 
-		fn toInt(self: Options) c_int {
+		pub fn toInt(self: Options) c_int {
 			return @intFromBool(self.bare)
 				| (@as(u2, @intFromBool(self.gobj)) << 1)
 				| (@as(u2, @intFromBool(self.patchable)) * 3)
