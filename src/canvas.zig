@@ -268,8 +268,8 @@ pub const GList = extern struct {
 		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 12) = 0,
 	};
 
-	pub const MotionFn = fn (*anyopaque, Float, Float, Float) callconv(.c) void;
-	pub const KeyFn = fn (*anyopaque, *Symbol, Float) callconv(.c) void;
+	pub const MotionFn = fn (*Pd, Float, Float, Float) callconv(.c) void;
+	pub const KeyFn = fn (*GObj, *Symbol, Float) callconv(.c) void;
 
 	pub const Instance = extern struct {
 		/// more, semi-private stuff
