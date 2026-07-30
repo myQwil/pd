@@ -33,9 +33,6 @@ pub fn Rect(T: type) type { return struct {
 	}
 };}
 
-pub const Method = fn () callconv(.c) void;
-pub const NewMethod = fn () callconv(.c) ?*anyopaque;
-
 pub const Array = cnv.Array;
 pub const Class = imp.Class;
 pub const GList = cnv.GList;
@@ -148,47 +145,42 @@ fn typesFromAtoms(comptime args: []const Atom.Type) [args.len]type {
 	for (args, &types) |a, *t| {
 		t.* = switch (a) {
 			.symbol, .defsymbol => *Symbol,
+			.pointer => *GPointer,
 			else => Float,
 		};
 	}
 	return types;
 }
 
-const Fn = std.builtin.Type.Fn;
-
-fn paramsFromTypes(comptime types: []const type) [types.len]Fn.Param {
-	var params: [types.len]Fn.Param = undefined;
-	for (types, &params) |t, *p| {
-		p.* = .{
-			.is_generic = false,
-			.is_noalias = false,
-			.type = t,
-		};
-	}
-	return params;
-}
-
-pub fn NewFn(T: type, comptime args: []const Atom.Type) type {
-	const types: []const type = if (args.len == 0)
+fn paramTypes(comptime args: []const Atom.Type) []const type {
+	return if (args.len == 0)
 		&.{}
 	else if (args[0] == .gimme)
 		&.{ *Symbol, c_uint, [*]Atom }
+	else if (args[0] == .cant)
+		&.{ [*]*Signal } // use @ptrCast if it's not for dsp
 	else
 		&typesFromAtoms(args);
+}
 
-	return @Fn(types, &@splat(.{}), ?*T, .{ .@"callconv" = .c });
+pub fn NewMethod(comptime args: []const Atom.Type) type {
+	const types = paramTypes(args);
+	return @Fn(types, &@splat(.{}), ?*Pd, .{ .@"callconv" = .c });
+}
+
+pub fn Method(comptime args: []const Atom.Type) type {
+	const types = .{ *Pd } ++ paramTypes(args);
+	return @Fn(types, &@splat(.{}), void, .{ .@"callconv" = .c });
 }
 
 pub fn addCreator(
-	T: type,
 	name: [:0]const u8,
 	comptime args: []const Atom.Type,
-	new_method: ?*const NewFn(T, args),
+	new_method: ?*const NewMethod(args),
 ) void {
-	const sym: *Symbol = .gen(name);
-	const csym: *c.t_symbol = @ptrCast(sym);
-	const newm: *const NewMethod = @ptrCast(new_method);
-	@call(.auto, c.class_addcreator, .{ newm, csym } ++ Atom.Type.tuple(args));
+	const sym: *c.t_symbol = @ptrCast(Symbol.gen(name));
+	const newm: c.t_newmethod = @ptrCast(new_method);
+	@call(.auto, c.class_addcreator, .{ newm, sym } ++ Atom.Type.tuple(args));
 }
 
 
@@ -377,8 +369,13 @@ pub const Clock = opaque {
 		c.clock_setunit(@ptrCast(self), unit.amount, @intFromBool(unit.in_samples));
 	}
 
-	pub fn init(owner: *anyopaque, func: *const Method) error{OutOfMemory}!*Clock {
-		return if (c.clock_new(owner, func)) |clk| @ptrCast(clk) else error.OutOfMemory;
+	pub fn init(
+		T: type,
+		owner: *T,
+		func: *const fn(*T) callconv(.c) void,
+	) error{OutOfMemory}!*Clock {
+		const result = c.clock_new(owner, @ptrCast(func));
+		return if (result) |clock| @ptrCast(clock) else error.OutOfMemory;
 	}
 };
 
@@ -983,9 +980,8 @@ pub const Pd = extern struct {
 	}
 
 	pub fn init(cls: *Class) error{OutOfMemory}!*Pd {
-		return if (c.pd_new(@ptrCast(cls))) |new|
-			@ptrCast(new)
-		else error.OutOfMemory;
+		const result = c.pd_new(@ptrCast(cls));
+		return if (result) |new| @ptrCast(new) else error.OutOfMemory;
 	}
 
 	/// Returns a pointer to the function `nullFn` on failure.
@@ -1051,6 +1047,24 @@ pub const post = struct {
 		@call(.auto, c.logpost, .{ obj, @as(c_int, @intFromEnum(level)), fmt } ++ args);
 	}
 };
+
+/// Helper for getting parent pointer
+pub fn parentPtr(T: type) fn(*Pd) callconv(.@"inline") *T {
+	return struct { inline fn parentPtr(p: *Pd) *T {
+		return @fieldParentPtr("obj", @as(*Object,
+			@fieldParentPtr("g", @as(*GObj,
+			@fieldParentPtr("pd", p)))));
+	}}.parentPtr;
+}
+
+/// Helper for getting parent pointer (const)
+pub fn parentConstPtr(T: type) fn(*const Pd) callconv(.@"inline") *const T {
+	return struct { inline fn parentConstPtr(p: *const Pd) *const T {
+		return @fieldParentPtr("obj", @as(*const Object,
+			@fieldParentPtr("g", @as(*const GObj,
+			@fieldParentPtr("pd", p)))));
+	}}.parentConstPtr;
+}
 
 /// Wrapper for new and setup functions
 pub inline fn wrap(T: type, result: anyerror!T, comptime prefix: [:0]const u8) ?T {

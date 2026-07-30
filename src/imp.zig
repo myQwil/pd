@@ -63,6 +63,16 @@ pub const MethodEntry = extern struct {
 	arg: [m.max_arg:0]u8,
 };
 
+pub const BangFn = fn (*Pd) callconv(.c) void;
+pub const PointerFn = fn (*Pd, *GPointer) callconv(.c) void;
+pub const FloatFn = fn (*Pd, Float) callconv(.c) void;
+pub const SymbolFn = fn (*Pd, *Symbol) callconv(.c) void;
+pub const ListFn = fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.c) void;
+pub const AnyFn = fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.c) void;
+pub const FreeFn = fn (*Class) callconv(.c) void;
+pub const SaveFn = fn (*GObj, *BinBuf) callconv(.c) void;
+pub const PropertiesFn = fn (*GObj, *cnv.GList) callconv(.c) void;
+
 pub const Class = extern struct {
 	name: *Symbol,
 	helpname: *Symbol,
@@ -70,7 +80,7 @@ pub const Class = extern struct {
 	size: usize,
 	methods: [*]MethodEntry,
 	nmethod: c_uint,
-	method_free: ?*const Method,
+	method_free: c.t_method,
 	method_bang: ?*const BangFn,
 	method_pointer: ?*const PointerFn,
 	method_float: ?*const FloatFn,
@@ -85,16 +95,6 @@ pub const Class = extern struct {
 	float_signal_in: c_uint,
 	flags: Flags,
 	fn_free: ?*const FreeFn,
-
-	pub const BangFn = fn (*Pd) callconv(.c) void;
-	pub const PointerFn = fn (*Pd, *GPointer) callconv(.c) void;
-	pub const FloatFn = fn (*Pd, Float) callconv(.c) void;
-	pub const SymbolFn = fn (*Pd, *Symbol) callconv(.c) void;
-	pub const ListFn = fn (*Pd, ?*Symbol, c_uint, [*]Atom) callconv(.c) void;
-	pub const AnyFn = fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.c) void;
-	pub const FreeFn = fn (*Class) callconv(.c) void;
-	pub const SaveFn = fn (*GObj, *BinBuf) callconv(.c) void;
-	pub const PropertiesFn = fn (*GObj, *cnv.GList) callconv(.c) void;
 
 	pub const Flags = packed struct(u8) {
 		/// true if is a gobj
@@ -149,28 +149,28 @@ pub const Class = extern struct {
 		c.class_free(@ptrCast(self));
 	}
 
-	pub fn addBang(self: *Class, func: *const Method) void {
-		c.class_addbang(@ptrCast(self), func);
+	pub fn addBang(self: *Class, func: *const BangFn) void {
+		c.class_addbang(@ptrCast(self), @ptrCast(func));
 	}
 
-	pub fn addPointer(self: *Class, func: *const Method) void {
-		c.class_addpointer(@ptrCast(self), func);
+	pub fn addPointer(self: *Class, func: *const PointerFn) void {
+		c.class_addpointer(@ptrCast(self), @ptrCast(func));
 	}
 
-	pub fn addFloat(self: *Class, func: *const Method) void {
-		c.class_doaddfloat(@ptrCast(self), func);
+	pub fn addFloat(self: *Class, func: *const FloatFn) void {
+		c.class_doaddfloat(@ptrCast(self), @ptrCast(func));
 	}
 
-	pub fn addSymbol(self: *Class, func: *const Method) void {
-		c.class_addsymbol(@ptrCast(self), func);
+	pub fn addSymbol(self: *Class, func: *const SymbolFn) void {
+		c.class_addsymbol(@ptrCast(self), @ptrCast(func));
 	}
 
-	pub fn addList(self: *Class, func: *const Method) void {
-		c.class_addlist(@ptrCast(self), func);
+	pub fn addList(self: *Class, func: *const ListFn) void {
+		c.class_addlist(@ptrCast(self), @ptrCast(func));
 	}
 
-	pub fn addAnything(self: *Class, func: *const Method) void {
-		c.class_addanything(@ptrCast(self), func);
+	pub fn addAnything(self: *Class, func: *const AnyFn) void {
+		c.class_addanything(@ptrCast(self), @ptrCast(func));
 	}
 
 	pub fn setHelpSymbol(self: *Class, sym: *Symbol) void {
@@ -236,12 +236,13 @@ pub const Class = extern struct {
 
 	pub fn addMethod(
 		self: *Class,
-		meth: *const Method,
-		sym: *Symbol,
 		comptime args: []const Atom.Type,
+		method: *const Method(args),
+		sym: *Symbol,
 	) void {
 		const cls: *c.struct__class = @ptrCast(self);
 		const sm: *c.t_symbol = @ptrCast(sym);
+		const meth: c.t_method = @ptrCast(method);
 		@call(.auto, c.pd_class_addmethod, .{ cls, meth, sm } ++ Atom.Type.tuple(args));
 	}
 
@@ -249,14 +250,14 @@ pub const Class = extern struct {
 		T: type,
 		name: [:0]const u8,
 		comptime args: []const Atom.Type,
-		new_method: ?*const m.NewFn(T, args),
-		free_method: ?*const fn(*T) callconv(.c) void,
+		new_method: ?*const NewMethod(args),
+		free_method: ?*const fn(*Pd) callconv(.c) void,
 		options: Options,
 	) error{ClassInit}!*Class {
 		// printStruct(T, name); // uncomment this to view struct field order
 		const sym: *c.t_symbol = c.gensym(name.ptr);
-		const newm: ?*const NewMethod = @ptrCast(new_method);
-		const freem: ?*const Method = @ptrCast(free_method);
+		const newm: c.t_newmethod = @ptrCast(new_method);
+		const freem: c.t_method = @ptrCast(free_method);
 		return if (@call(.auto, c.pd_class_new,
 			.{ sym, newm, freem, @sizeOf(T), options.toInt() } ++ Atom.Type.tuple(args)
 		)) |cls| @ptrCast(@alignCast(cls)) else error.ClassInit;
