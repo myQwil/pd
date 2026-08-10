@@ -197,7 +197,7 @@ pub const BinBuf = opaque {
 		return c.binbuf_free(@ptrCast(self));
 	}
 
-	pub fn duplicate(self: *const BinBuf) error{OutOfMemory}!*BinBuf {
+	pub fn duplicate(self: *const BinBuf) Oom!*BinBuf {
 		return c.binbuf_duplicate(@ptrCast(self)) orelse error.OutOfMemory;
 	}
 
@@ -231,7 +231,7 @@ pub const BinBuf = opaque {
 		return c.binbuf_clear(@ptrCast(self));
 	}
 
-	pub fn add(self: *BinBuf, av: []const Atom) error{OutOfMemory}!void {
+	pub fn add(self: *BinBuf, av: []const Atom) Oom!void {
 		const newsize = self.len() + av.len;
 		c.binbuf_add(@ptrCast(self), iFromU(av.len), @ptrCast(av.ptr));
 		if (self.len() != newsize)
@@ -242,7 +242,7 @@ pub const BinBuf = opaque {
 		self: *BinBuf,
 		fmt: [:0]const u8,
 		args: anytype,
-	) error{OutOfMemory}!void {
+	) Oom!void {
 		const newsize = self.len() + fmt.len;
 		const info = @typeInfo(@TypeOf(c.binbuf_addv));
 		const x: info.@"fn".params[0].type.? = @ptrCast(self);
@@ -254,14 +254,14 @@ pub const BinBuf = opaque {
 	/// Add a binbuf to another one for saving. Semicolons and commas go to
 	/// symbols ";", "'",; and inside symbols, characters ';', ',' and '$' get
 	/// escaped. LATER also figure out about escaping white space
-	pub fn join(self: *BinBuf, other: *const BinBuf) error{OutOfMemory}!void {
+	pub fn join(self: *BinBuf, other: *const BinBuf) Oom!void {
 		const newsize = self.len() + other.len();
 		c.binbuf_addbinbuf(@ptrCast(self), @ptrCast(self));
 		if (self.len() != newsize)
 			return error.OutOfMemory;
 	}
 
-	pub fn addSemi(self: *BinBuf) error{OutOfMemory}!void {
+	pub fn addSemi(self: *BinBuf) Oom!void {
 		const newsize = self.len() + 1;
 		c.binbuf_addsemi(@ptrCast(self));
 		if (self.len() != newsize)
@@ -270,7 +270,7 @@ pub const BinBuf = opaque {
 
 	/// Supply atoms to a binbuf from a message, making the opposite changes
 	/// from `join`. The symbol ";" goes to a semicolon, etc.
-	pub fn restore(self: *BinBuf, av: []Atom) error{OutOfMemory}!void {
+	pub fn restore(self: *BinBuf, av: []Atom) Oom!void {
 		const newsize = self.len() + av.len;
 		c.binbuf_restore(@ptrCast(self), iFromU(av.len), @ptrCast(av.ptr));
 		if (self.len() != newsize)
@@ -316,12 +316,12 @@ pub const BinBuf = opaque {
 			return error.BinBufWrite;
 	}
 
-	pub fn resize(self: *BinBuf, newsize: uint) error{OutOfMemory}!void {
+	pub fn resize(self: *BinBuf, newsize: uint) Oom!void {
 		if (c.binbuf_resize(@ptrCast(self), newsize) == 0)
 			return error.OutOfMemory;
 	}
 
-	pub fn init() error{OutOfMemory}!*BinBuf {
+	pub fn init() Oom!*BinBuf {
 		return if (c.binbuf_new()) |bb| @ptrCast(bb) else error.OutOfMemory;
 	}
 
@@ -373,7 +373,7 @@ pub const Clock = opaque {
 		T: type,
 		owner: *T,
 		func: *const fn(*T) callconv(.c) void,
-	) error{OutOfMemory}!*Clock {
+	) Oom!*Clock {
 		const result = c.clock_new(owner, @ptrCast(func));
 		return if (result) |clock| @ptrCast(clock) else error.OutOfMemory;
 	}
@@ -383,7 +383,9 @@ pub const TimeUnit = extern struct {
 	amount: f64 = 1,
 	in_samples: bool = false,
 
-	pub fn init(amount: Float, unit: *Symbol) error{UnknownTimeUnit}!TimeUnit {
+	pub const Error = error{UnknownTimeUnit};
+
+	pub fn init(amount: Float, unit: *Symbol) Error!TimeUnit {
 		const name: [:0]const u8 = std.mem.sliceTo(unit.name, 0);
 		const is_per = std.mem.startsWith(u8, name, "per");
 		const sym = if (is_per) name[3..] else name;
@@ -456,6 +458,9 @@ pub extern const garray_class: *Class;
 pub extern const scalar_class: *Class;
 
 pub const GArray = opaque {
+	pub const GetError = error{GArrayNotFound,GArrayBadTemplate};
+	pub const ResizeError = Oom || error{GetArrayFail};
+
 	pub fn redraw(self: *GArray) void {
 		c.garray_redraw(@ptrCast(self));
 	}
@@ -471,7 +476,7 @@ pub const GArray = opaque {
 		return arr.vec[0..arr.len];
 	}
 
-	pub fn resize(self: *GArray, len: uint) !void {
+	pub fn resize(self: *GArray, len: uint) ResizeError!void {
 		c.garray_resize_long(@ptrCast(self), len);
 		const arr = try self.array();
 		if (arr.len < len) {
@@ -576,7 +581,7 @@ pub const Inlet = opaque {
 	pub fn init(
 		owner: *Object, dest: *Pd,
 		from: ?*Symbol, to: ?*Symbol,
-	) error{OutOfMemory}!*Inlet {
+	) Oom!*Inlet {
 		const s1: ?*c.t_symbol = @ptrCast(from);
 		const s2: ?*c.t_symbol = @ptrCast(to);
 		return if (c.inlet_new(@ptrCast(owner), @ptrCast(dest), s1, s2)) |inlet|
@@ -584,25 +589,25 @@ pub const Inlet = opaque {
 		else error.OutOfMemory;
 	}
 
-	pub fn initFloat(owner: *Object, fp: *Float) error{OutOfMemory}!*Inlet {
+	pub fn initFloat(owner: *Object, fp: *Float) Oom!*Inlet {
 		return if (c.floatinlet_new(@ptrCast(owner), fp)) |inlet|
 			@ptrCast(inlet)
 		else error.OutOfMemory;
 	}
 
-	pub fn initSymbol(owner: *Object, sym: **Symbol) error{OutOfMemory}!*Inlet {
+	pub fn initSymbol(owner: *Object, sym: **Symbol) Oom!*Inlet {
 		return if (c.symbolinlet_new(@ptrCast(owner), @ptrCast(sym))) |inlet|
 			@ptrCast(inlet)
 		else error.OutOfMemory;
 	}
 
-	pub fn initSignal(owner: *Object, f: Float) error{OutOfMemory}!*Inlet {
+	pub fn initSignal(owner: *Object, f: Float) Oom!*Inlet {
 		return if (c.signalinlet_new(@ptrCast(owner), f)) |inlet|
 			@ptrCast(inlet)
 		else error.OutOfMemory;
 	}
 
-	pub fn initPointer(owner: *Object, gp: *GPointer) error{OutOfMemory}!*Inlet {
+	pub fn initPointer(owner: *Object, gp: *GPointer) Oom!*Inlet {
 		return if (c.pointerinlet_new(@ptrCast(owner), @ptrCast(gp))) |inlet|
 			@ptrCast(inlet)
 		else error.OutOfMemory;
@@ -657,7 +662,7 @@ pub const Instance = if (opt.multi) extern struct {
 
 	islocked: c_uint,
 
-	pub fn init() error{OutOfMemory}!*Instance {
+	pub fn init() Oom!*Instance {
 		return pdinstance_new() orelse error.OutOfMemory;
 	}
 	extern fn pdinstance_new() ?*Instance;
@@ -696,6 +701,7 @@ pub inline fn this() *Instance {
 // -----------------------------------------------------------------------------
 const Allocator = std.mem.Allocator;
 const Alignment = std.mem.Alignment;
+pub const Oom = Allocator.Error;
 
 fn alloc(_: *anyopaque, len: usize, _: Alignment, _: usize) ?[*]u8 {
 	std.debug.assert(len > 0);
@@ -875,7 +881,7 @@ pub const Outlet = opaque {
 		return c.outlet_getsymbol(@ptrCast(self));
 	}
 
-	pub fn init(obj: *Object, atype: ?*Symbol) error{OutOfMemory}!*Outlet {
+	pub fn init(obj: *Object, atype: ?*Symbol) Oom!*Outlet {
 		return if (c.outlet_new(@ptrCast(obj), @ptrCast(atype))) |o|
 			@ptrCast(o)
 		else error.OutOfMemory;
@@ -979,7 +985,7 @@ pub const Pd = extern struct {
 		return @ptrCast(c.pd_newest());
 	}
 
-	pub fn init(cls: *Class) error{OutOfMemory}!*Pd {
+	pub fn init(cls: *Class) Oom!*Pd {
 		const result = c.pd_new(@ptrCast(cls));
 		return if (result) |new| @ptrCast(new) else error.OutOfMemory;
 	}
@@ -1153,7 +1159,7 @@ pub const Signal = extern struct {
 		nchans: uint,
 		samplerate: Float,
 		scalarptr: *Sample
-	) error{OutOfMemory}!*Signal {
+	) Oom!*Signal {
 		return if (c.signal_new(length, nchans, samplerate, scalarptr)) |sig|
 			@ptrCast(sig)
 		else error.OutOfMemory;
@@ -1174,7 +1180,7 @@ pub const Symbol = extern struct {
 	thing: ?*Pd,
 	next: ?*Symbol,
 
-	pub fn add(name: [*:0]const u8) error{OutOfMemory}!*Symbol {
+	pub fn add(name: [*:0]const u8) Oom!*Symbol {
 		return if (c.gensym(name)) |sym| @ptrCast(sym) else error.OutOfMemory;
 	}
 	pub fn gen(name: [*:0]const u8) *Symbol {
