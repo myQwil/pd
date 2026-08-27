@@ -1055,18 +1055,21 @@ pub const post = struct {
 };
 
 /// Helper for getting parent pointer
-pub fn parentPtr(T: type) fn(*Pd) callconv(.@"inline") *T {
+pub fn parentPtr(T: type, comptime obj: []const u8) fn(*Pd) callconv(.@"inline") *T {
 	return struct { inline fn parentPtr(p: *Pd) *T {
-		return @fieldParentPtr("obj", @as(*Object,
+		return @fieldParentPtr(obj, @as(*Object,
 			@fieldParentPtr("g", @as(*GObj,
 			@fieldParentPtr("pd", p)))));
 	}}.parentPtr;
 }
 
 /// Helper for getting parent pointer (const)
-pub fn parentConstPtr(T: type) fn(*const Pd) callconv(.@"inline") *const T {
+pub fn parentConstPtr(
+	T: type,
+	comptime obj: []const u8,
+) fn(*const Pd) callconv(.@"inline") *const T {
 	return struct { inline fn parentConstPtr(p: *const Pd) *const T {
-		return @fieldParentPtr("obj", @as(*const Object,
+		return @fieldParentPtr(obj, @as(*const Object,
 			@fieldParentPtr("g", @as(*const GObj,
 			@fieldParentPtr("pd", p)))));
 	}}.parentConstPtr;
