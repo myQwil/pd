@@ -40,7 +40,7 @@ const Sesom = extern struct {
 	}
 
 	inline fn setup() pd.Class.Error!void {
-		class = try .init(Sesom, name, &.{ .deffloat }, initC, null, .{});
+		class = try .init(name, &.{ .deffloat }, initC, null, @sizeOf(Sesom), .{});
 		class.addFloat(floatC);
 	}
 };

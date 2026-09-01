@@ -250,11 +250,11 @@ pub const Class = extern struct {
 	pub const Error = error{ClassFailed};
 
 	pub fn init(
-		T: type,
 		name: [:0]const u8,
 		comptime args: []const Atom.Type,
 		new_method: ?*const NewMethod(args),
 		free_method: ?*const fn(*Pd) callconv(.c) void,
+		size: usize,
 		options: Options,
 	) Error!*Class {
 		// printStruct(T, name); // uncomment this to view struct field order
@@ -262,7 +262,7 @@ pub const Class = extern struct {
 		const newm: c.t_newmethod = @ptrCast(new_method);
 		const freem: c.t_method = @ptrCast(free_method);
 		return if (@call(.auto, c.pd_class_new,
-			.{ sym, newm, freem, @sizeOf(T), options.toInt() } ++ Atom.Type.tuple(args)
+			.{ sym, newm, freem, size, options.toInt() } ++ Atom.Type.tuple(args)
 		)) |cls| @ptrCast(@alignCast(cls)) else error.ClassFailed;
 	}
 
