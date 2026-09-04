@@ -185,7 +185,7 @@ const Tick = extern struct {
 
 pub const GList = extern struct {
 	/// header in case we're a glist
-	obj: Object = .{},
+	obj: Object,
 	/// the actual data
 	list: ?*GObj = null,
 	/// safe pointer handler
@@ -638,7 +638,7 @@ pub const GList = extern struct {
 // ----------------------------------- GObj ------------------------------------
 // -----------------------------------------------------------------------------
 pub const GObj = extern struct {
-	pd: Pd = .{},
+	pd: Pd,
 	next: ?*GObj = null,
 
 	pub fn getRect(

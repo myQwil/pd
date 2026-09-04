@@ -738,7 +738,7 @@ pub const gpa = Allocator{
 // -----------------------------------------------------------------------------
 pub const Object = extern struct {
 	/// header for graphical object
-	g: GObj = .{},
+	g: GObj,
 	/// holder for the text
 	binbuf: ?*BinBuf = null,
 	/// linked list of outlets
@@ -895,7 +895,7 @@ pub const Outlet = opaque {
 pub extern const glob_pdobject: *Class;
 
 pub const Pd = extern struct {
-	class: *const Class = undefined,
+	class: *const Class,
 
 	pub fn destroy(self: *Pd) void {
 		c.pd_free(@ptrCast(self));
