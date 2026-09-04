@@ -1071,6 +1071,20 @@ pub fn parentConstPtr(
 	}}.parentConstPtr;
 }
 
+/// Helper for putting a pd object and a zig object in the same struct.
+pub fn Box(Head: type, Body: type) type { return extern struct {
+	head: Head,
+	body: [@sizeOf(Body)]u8 align(@alignOf(Body)),
+
+	pub fn state(p: *Pd) *Body {
+		return @ptrCast(&@as(*@This(), @ptrCast(p)).body);
+	}
+
+	pub fn stateConst(p: *const Pd) *const Body {
+		return @ptrCast(&@as(*const @This(), @ptrCast(p)).body);
+	}
+};}
+
 /// Wrapper for new and setup functions
 pub inline fn wrap(T: type, result: anyerror!T, comptime prefix: [:0]const u8) ?T {
 	return result catch |e| blk: {
