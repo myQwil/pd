@@ -544,10 +544,6 @@ pub const GPointer = extern struct {
 		w: *Word,
 	};
 
-	pub fn init(self: *GPointer) void {
-		self.* = .{};
-	}
-
 	/// Copy a pointer to another, assuming the second one hasn't yet been
 	/// initialized. New gpointers should be initialized either by this
 	/// routine or by `create()`.
@@ -1111,10 +1107,6 @@ pub const Resample = extern struct {
 
 	pub fn destroy(self: *Resample) void {
 		c.resample_free(@ptrCast(self));
-	}
-
-	pub fn init(self: *Resample) void {
-		self.* = .{};
 	}
 
 	pub fn dsp(self: *Resample, in: []Sample, out: []Sample, conv: Converter) void {
