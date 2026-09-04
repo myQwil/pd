@@ -41,7 +41,7 @@ pub const NameList = extern struct {
 		}
 	}
 
-	pub fn deinit(self: *NameList) void {
+	pub fn destroy(self: *NameList) void {
 		c.namelist_free(@ptrCast(self));
 	}
 

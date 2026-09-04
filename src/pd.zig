@@ -193,7 +193,7 @@ pub const BinBuf = opaque {
 		_unused: @Int(.unsigned, @bitSizeOf(c_uint) - 2) = 0,
 	};
 
-	pub fn deinit(self: *BinBuf) void {
+	pub fn destroy(self: *BinBuf) void {
 		return c.binbuf_free(@ptrCast(self));
 	}
 
@@ -321,7 +321,7 @@ pub const BinBuf = opaque {
 			return error.OutOfMemory;
 	}
 
-	pub fn init() Oom!*BinBuf {
+	pub fn create() Oom!*BinBuf {
 		return if (c.binbuf_new()) |bb| @ptrCast(bb) else error.OutOfMemory;
 	}
 
@@ -349,7 +349,7 @@ pub fn realizeDollSym(
 // ----------------------------------- Clock -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Clock = opaque {
-	pub fn deinit(self: *Clock) void {
+	pub fn destroy(self: *Clock) void {
 		return c.clock_free(@ptrCast(self));
 	}
 
@@ -369,7 +369,7 @@ pub const Clock = opaque {
 		c.clock_setunit(@ptrCast(self), unit.amount, @intFromBool(unit.in_samples));
 	}
 
-	pub fn init(
+	pub fn create(
 		T: type,
 		owner: *T,
 		func: *const fn(*T) callconv(.c) void,
@@ -550,7 +550,7 @@ pub const GPointer = extern struct {
 
 	/// Copy a pointer to another, assuming the second one hasn't yet been
 	/// initialized. New gpointers should be initialized either by this
-	/// routine or by `init()`.
+	/// routine or by `create()`.
 	pub fn copyTo(self: *const GPointer, target: *GPointer) void {
 		c.gpointer_copy(@ptrCast(self), @ptrCast(target));
 	}
@@ -574,11 +574,11 @@ pub const GPointer = extern struct {
 // ----------------------------------- Inlet -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Inlet = opaque {
-	pub fn deinit(self: *Inlet) void {
+	pub fn destroy(self: *Inlet) void {
 		c.inlet_free(@ptrCast(self));
 	}
 
-	pub fn init(
+	pub fn create(
 		owner: *Object, dest: *Pd,
 		from: ?*Symbol, to: ?*Symbol,
 	) Oom!*Inlet {
@@ -589,25 +589,25 @@ pub const Inlet = opaque {
 		else error.OutOfMemory;
 	}
 
-	pub fn initFloat(owner: *Object, fp: *Float) Oom!*Inlet {
+	pub fn createFloat(owner: *Object, fp: *Float) Oom!*Inlet {
 		return if (c.floatinlet_new(@ptrCast(owner), fp)) |inlet|
 			@ptrCast(inlet)
 		else error.OutOfMemory;
 	}
 
-	pub fn initSymbol(owner: *Object, sym: **Symbol) Oom!*Inlet {
+	pub fn createSymbol(owner: *Object, sym: **Symbol) Oom!*Inlet {
 		return if (c.symbolinlet_new(@ptrCast(owner), @ptrCast(sym))) |inlet|
 			@ptrCast(inlet)
 		else error.OutOfMemory;
 	}
 
-	pub fn initSignal(owner: *Object, f: Float) Oom!*Inlet {
+	pub fn createSignal(owner: *Object, f: Float) Oom!*Inlet {
 		return if (c.signalinlet_new(@ptrCast(owner), f)) |inlet|
 			@ptrCast(inlet)
 		else error.OutOfMemory;
 	}
 
-	pub fn initPointer(owner: *Object, gp: *GPointer) Oom!*Inlet {
+	pub fn createPointer(owner: *Object, gp: *GPointer) Oom!*Inlet {
 		return if (c.pointerinlet_new(@ptrCast(owner), @ptrCast(gp))) |inlet|
 			@ptrCast(inlet)
 		else error.OutOfMemory;
@@ -662,7 +662,7 @@ pub const Instance = if (opt.multi) extern struct {
 
 	islocked: c_uint,
 
-	pub fn init() Oom!*Instance {
+	pub fn create() Oom!*Instance {
 		return pdinstance_new() orelse error.OutOfMemory;
 	}
 	extern fn pdinstance_new() ?*Instance;
@@ -818,12 +818,12 @@ pub const Object = extern struct {
 		return @intFromFloat(glist.toPixels(rect.p1 + rect.size() * fpix / screen_size));
 	}
 
-	pub const outlet = Outlet.init;
-	pub const inlet = Inlet.init;
-	pub const inletFloat = Inlet.initFloat;
-	pub const inletSymbol = Inlet.initSymbol;
-	pub const inletSignal = Inlet.initSignal;
-	pub const inletPointer = Inlet.initPointer;
+	pub const outlet = Outlet.create;
+	pub const inlet = Inlet.create;
+	pub const inletFloat = Inlet.createFloat;
+	pub const inletSymbol = Inlet.createSymbol;
+	pub const inletSignal = Inlet.createSignal;
+	pub const inletPointer = Inlet.createPointer;
 
 	/// connect an outlet of one object to an inlet of another. The receiving
 	/// "pd" is usually a patchable object, but this may be used to add a
@@ -846,7 +846,7 @@ pub const Object = extern struct {
 // ---------------------------------- Outlet -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Outlet = opaque {
-	pub fn deinit(self: *Outlet) void {
+	pub fn destroy(self: *Outlet) void {
 		c.outlet_free(@ptrCast(self));
 	}
 
@@ -881,7 +881,7 @@ pub const Outlet = opaque {
 		return c.outlet_getsymbol(@ptrCast(self));
 	}
 
-	pub fn init(obj: *Object, atype: ?*Symbol) Oom!*Outlet {
+	pub fn create(obj: *Object, atype: ?*Symbol) Oom!*Outlet {
 		return if (c.outlet_new(@ptrCast(obj), @ptrCast(atype))) |o|
 			@ptrCast(o)
 		else error.OutOfMemory;
@@ -897,7 +897,7 @@ pub extern const glob_pdobject: *Class;
 pub const Pd = extern struct {
 	class: *const Class = undefined,
 
-	pub fn deinit(self: *Pd) void {
+	pub fn destroy(self: *Pd) void {
 		c.pd_free(@ptrCast(self));
 	}
 
@@ -985,7 +985,7 @@ pub const Pd = extern struct {
 		return @ptrCast(c.pd_newest());
 	}
 
-	pub fn init(cls: *Class) Oom!*Pd {
+	pub fn create(cls: *Class) Oom!*Pd {
 		const result = c.pd_new(@ptrCast(cls));
 		return if (result) |new| @ptrCast(new) else error.OutOfMemory;
 	}
@@ -1109,7 +1109,7 @@ pub const Resample = extern struct {
 		linear = 2,
 	};
 
-	pub fn deinit(self: *Resample) void {
+	pub fn destroy(self: *Resample) void {
 		c.resample_free(@ptrCast(self));
 	}
 
@@ -1157,7 +1157,7 @@ pub const Signal = extern struct {
 	/// Otherwise, if `length` is zero, return a "borrowed"
 	/// signal whose buffer and size will be obtained later via
 	/// `signal_setborrowed()`.
-	pub fn init(
+	pub fn create(
 		length: uint,
 		nchans: uint,
 		samplerate: Float,

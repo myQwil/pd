@@ -157,7 +157,7 @@ pub const Gui = extern struct {
 		return @as(Float, @floatFromInt(defaultSize())) / 15;
 	}
 
-	pub fn deinit(self: *Gui) void {
+	pub fn destroy(self: *Gui) void {
 		c.iemgui_free(@ptrCast(self));
 	}
 
@@ -319,7 +319,7 @@ pub const Gui = extern struct {
 			@ptrCast(self), @ptrCast(srl), iFromU(av.len), @ptrCast(av.ptr)))))));
 	}
 
-	pub fn init(cls: *Class) error{GuiInitFail}!*Gui {
+	pub fn create(cls: *Class) error{GuiInitFail}!*Gui {
 		return if (c.iemgui_new(cls)) |gui| @ptrCast(gui) else error.GuiInitFail;
 	}
 };

@@ -142,10 +142,10 @@ pub const Class = extern struct {
 		}
 	};
 
-	pub const pd = m.Pd.init;
-	pub const gui = m.iem.Gui.init;
+	pub const pd = m.Pd.create;
+	pub const gui = m.iem.Gui.create;
 
-	pub fn deinit(self: *Class) void {
+	pub fn destroy(self: *Class) void {
 		c.class_free(@ptrCast(self));
 	}
 
@@ -246,10 +246,10 @@ pub const Class = extern struct {
 		@call(.auto, c.pd_class_addmethod, .{ cls, meth, sm } ++ Atom.Type.tuple(args));
 	}
 
-	/// read pd console for specific reason
+	/// check the pd console for a more specific reason
 	pub const Error = error{ClassFailed};
 
-	pub fn init(
+	pub fn create(
 		name: [:0]const u8,
 		comptime args: []const Atom.Type,
 		new_method: ?*const NewMethod(args),
