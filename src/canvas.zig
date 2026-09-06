@@ -124,7 +124,7 @@ pub const Editor = extern struct {
 	/// glist which owns this
 	glist: *GList,
 	/// pos on last mousedown or motion event
-	was: [2]c_int,
+	was: [2]f32,
 	/// indices for the selected line if any
 	selectline_index1: c_int,
 	/// (only valid if e_selectedline is set)
@@ -136,7 +136,7 @@ pub const Editor = extern struct {
 	/// clock to filter GUI move messages
 	clock: *Clock,
 	/// pos for next move event
-	new: [2]c_int,
+	new: [2]f32,
 
 	pub const Flags = packed struct(c_uint) {
 		/// action to take on motion
