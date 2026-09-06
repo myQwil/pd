@@ -1000,6 +1000,20 @@ pub const Pd = extern struct {
 /// An empty function that does nothing.
 pub const nullFn = c.nullfn;
 
+/// Helper for putting a pd object and a zig object in the same struct.
+pub fn Box(Head: type, Body: type) type { return extern struct {
+	head: Head,
+	body: [@sizeOf(Body)]u8 align(@alignOf(Body)),
+
+	pub inline fn state(p: *Pd) *Body {
+		return @ptrCast(&@as(*@This(), @ptrCast(p)).body);
+	}
+
+	pub inline fn stateConst(p: *const Pd) *const Body {
+		return @ptrCast(&@as(*const @This(), @ptrCast(p)).body);
+	}
+};}
+
 
 // ----------------------------------- Post ------------------------------------
 // -----------------------------------------------------------------------------
@@ -1049,41 +1063,6 @@ pub const post = struct {
 		@call(.auto, c.logpost, .{ obj, @as(c_int, @intFromEnum(level)), fmt } ++ args);
 	}
 };
-
-/// Helper for getting parent pointer
-pub fn parentPtr(T: type, comptime obj: []const u8) fn(*Pd) callconv(.@"inline") *T {
-	return struct { inline fn parentPtr(p: *Pd) *T {
-		return @fieldParentPtr(obj, @as(*Object,
-			@fieldParentPtr("g", @as(*GObj,
-			@fieldParentPtr("pd", p)))));
-	}}.parentPtr;
-}
-
-/// Helper for getting parent pointer (const)
-pub fn parentConstPtr(
-	T: type,
-	comptime obj: []const u8,
-) fn(*const Pd) callconv(.@"inline") *const T {
-	return struct { inline fn parentConstPtr(p: *const Pd) *const T {
-		return @fieldParentPtr(obj, @as(*const Object,
-			@fieldParentPtr("g", @as(*const GObj,
-			@fieldParentPtr("pd", p)))));
-	}}.parentConstPtr;
-}
-
-/// Helper for putting a pd object and a zig object in the same struct.
-pub fn Box(Head: type, Body: type) type { return extern struct {
-	head: Head,
-	body: [@sizeOf(Body)]u8 align(@alignOf(Body)),
-
-	pub fn state(p: *Pd) *Body {
-		return @ptrCast(&@as(*@This(), @ptrCast(p)).body);
-	}
-
-	pub fn stateConst(p: *const Pd) *const Body {
-		return @ptrCast(&@as(*const @This(), @ptrCast(p)).body);
-	}
-};}
 
 /// Wrapper for new and setup functions
 pub inline fn wrap(T: type, result: anyerror!T, comptime prefix: [:0]const u8) ?T {
