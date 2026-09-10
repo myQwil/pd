@@ -803,7 +803,7 @@ pub const Object = extern struct {
 		}
 		const rect: Rect(Float) = .{ .p1 = glist.p1, .p2 = glist.p2 };
 		if (glist.flags.goprect) {
-			const p1: IVec2 = @intFromFloat(glist.toPixels(rect.p1));
+			const p1: IVec2 = @trunc(glist.toPixels(rect.p1));
 			return p1 + IVec2{ glist.zoom, glist.zoom } * (pix - glist.margin);
 		}
 		const fpix: FVec2 = @floatFromInt(pix);
@@ -811,7 +811,7 @@ pub const Object = extern struct {
 			.p1 = glist.screen1,
 			.p2 = glist.screen2,
 		}).size());
-		return @intFromFloat(glist.toPixels(rect.p1 + rect.size() * fpix / screen_size));
+		return @trunc(glist.toPixels(rect.p1 + rect.size() * fpix / screen_size));
 	}
 
 	pub const outlet = Outlet.create;
