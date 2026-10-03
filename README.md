@@ -7,13 +7,13 @@ packaged for [Zig](https://ziglang.org/).
 
 ```sh
 # Build the library (default)
-zig build --release=fast
+zig build -Doptimize=ReleaseFast
 # Build the executable
-zig build exe --release=fast
+zig build exe -Doptimize=ReleaseFast
 # Build and run the executable 
-zig build run --release=fast
+zig build run -Doptimize=ReleaseFast
 # System-wide installation
-./install.sh exe --release=fast
+./install.sh exe -Doptimize=ReleaseFast
 ```
 
 ### Build Options:
