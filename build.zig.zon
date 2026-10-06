@@ -1,12 +1,12 @@
 .{
 	.name = .pd,
-	.version = "0.56.5",
+	.version = "0.57.0",
 	.fingerprint = 0x2439ce48ed342d0c,
-	.minimum_zig_version = "0.16.0",
+	.minimum_zig_version = "0.17.0",
 	.dependencies = .{
 		.pd = .{
-			.url = "git+https://github.com/pure-data/pure-data.git?ref=master#f009fd8d7b537e209e09898d487fdf1bf547da2b",
-			.hash = "N-V-__8AANUPeQGGA0ZedIw5f_aCFwH0dbRv-4QNuiHWeLlh",
+			.url = "git+https://github.com/pure-data/pure-data.git?ref=master#f3497d41dd28d4ec1906a0601ff4c0a661c3e5d9",
+			.hash = "N-V-__8AAJtXfQGtCZ2PPDBaAVVQtJuc2RyZ6-hiwIru4Us-",
 		},
 		.portaudio = .{
 			.url = "git+https://github.com/PortAudio/portaudio.git?ref=master#da2a674c4d08f6b099d2f964ba5c03905720538f",

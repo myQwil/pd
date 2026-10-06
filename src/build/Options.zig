@@ -4,6 +4,7 @@ const std = @import("std");
 const LinkMode = std.builtin.LinkMode;
 
 lib: Lib = .{},
+prefix: []const u8 = "",
 float_size: u8 = 32,
 locales: bool = true,
 watchdog: bool = true,
@@ -57,6 +58,10 @@ pub fn init(
 				"Lib: Set LC_NUMERIC automatically with setlocale()"
 			) orelse default.lib.setlocale,
 		},
+
+		.prefix = b.option([]const u8, "prefix",
+			"Prefix for generating pd-gui"
+		) orelse default.prefix,
 
 		.float_size = b.option(u8, "float_size",
 			"Size of a floating-point number"

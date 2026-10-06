@@ -20,7 +20,7 @@ pub fn addExecutable(b: *Build, options: ExecutableOptions) !*Compile {
 	var flags: StringList = .empty;
 	defer flags.deinit(mem);
 	try flags.append(mem, "-fno-sanitize=undefined");
-	if (options.optimize != .Debug) {
+	if (options.optimize != .debug) {
 		try flags.appendSlice(mem, &.{
 			"-ffast-math",
 			"-funroll-loops",

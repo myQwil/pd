@@ -1,44 +1,36 @@
 const std = @import("std");
-const src = @import("src/build/sources.zig");
+const srcs = @import("src/build/sources.zig");
 
 const Options = @import("src/build/Options.zig");
-pub const InstallLink = @import("src/build/InstallLink.zig");
 
 const Build = std.Build;
 const StringList = std.ArrayList([]const u8);
 
-inline fn endsWith(haystack: []const u8, needles: []const []const u8) bool {
-	return for (needles) |needle| {
-		if (std.mem.endsWith(u8, haystack, needle)) {
-			break true;
-		}
-	} else false;
-}
-
-fn installFiles(
+inline fn installDir(
 	b: *Build,
 	dep: *Build.Dependency,
 	install: *Build.Step.InstallArtifact,
-	src_path: []const u8,
-	dest_path: []const u8,
+	dest: []const u8,
+	src: []const u8,
 	exts: []const []const u8,
-) !void {
-	const io = b.graph.io;
-	// Using `getPath4` outside of the make phase. Normally, this would be bad,
-	// but it's from a dependency, so the files are there at graph construction time.
-	const cpath = try dep.path(src_path).getPath4(b, null);
-	var dir = try cpath.openDir(io, "", .{ .iterate = true });
-	defer dir.close(io);
+) void {
+	install.step.dependOn(&b.addInstallDirectory(.{
+		.include_extensions = exts,
+		.source_dir = dep.path(src),
+		.install_subdir = dest ++ "/" ++ src,
+		.install_dir = .prefix,
+	}).step);
+}
 
-	var iter = dir.iterate();
-	while (try iter.next(io)) |f| {
-		if (f.kind != .file or !endsWith(f.name, exts)) {
-			continue;
-		}
-		const path = b.fmt("{s}/{s}", .{ src_path, f.name });
-		const path2 = b.fmt("{s}/{s}", .{ dest_path, path });
-		install.step.dependOn(&b.addInstallFile(dep.path(path), path2).step);
-	}
+inline fn installFile(
+	b: *Build,
+	dep: *Build.Dependency,
+	install: *Build.Step.InstallArtifact,
+	dest: []const u8,
+	src: []const u8,
+) void {
+	const name = comptime std.fs.path.basenamePosix(src);
+	install.step.dependOn(&b.addInstallFile(dep.path(src), dest ++ "/" ++ name).step);
 }
 
 pub fn extension(
@@ -78,7 +70,6 @@ pub fn build(b: *Build) !void {
 	const opt: Options = .init(b, os);
 	const mem = b.allocator;
 
-	//---------------------------------------------------------------------------
 	// Zig extern module
 	const c_mod = blk: {
 		const c = b.addTranslateC(.{
@@ -104,28 +95,27 @@ pub fn build(b: *Build) !void {
 		},
 	});
 
-	//---------------------------------------------------------------------------
-	// Library
-	const lib = try @import("src/build/lib.zig").addLibrary(b, .{
-		.opt = opt,
-		.dep = upstream,
-		.target = target,
-		.optimize = optimize,
-	});
-	b.installArtifact(lib);
+	{ // Library
+		const lib = try @import("src/build/lib.zig").addLibrary(b, .{
+			.opt = opt,
+			.dep = upstream,
+			.target = target,
+			.optimize = optimize,
+		});
+		b.installArtifact(lib);
 
-	const zig_lib_mod = b.addModule("libpd", .{
-		.target = target,
-		.optimize = optimize,
-		.root_source_file = b.path("src/libpd.zig"),
-		.imports = &.{
-			.{ .name = "pd", .module = zig_mod },
-			.{ .name = "cdef", .module = c_mod },
-		},
-	});
-	zig_lib_mod.linkLibrary(lib);
+		const zig_lib_mod = b.addModule("libpd", .{
+			.target = target,
+			.optimize = optimize,
+			.root_source_file = b.path("src/libpd.zig"),
+			.imports = &.{
+				.{ .name = "pd", .module = zig_mod },
+				.{ .name = "cdef", .module = c_mod },
+			},
+		});
+		zig_lib_mod.linkLibrary(lib);
+	}
 
-	//---------------------------------------------------------------------------
 	// Executable
 	const exe = try @import("src/build/exe.zig").addExecutable(b, .{
 		.opt = opt,
@@ -135,23 +125,30 @@ pub fn build(b: *Build) !void {
 	});
 	const install_exe = b.addInstallArtifact(exe, .{});
 
-	const pd_path: Build.LazyPath = .{ .cwd_relative = b.getInstallPath(.bin, "pd") };
-	const exe_symlink: *InstallLink = .add(b, pd_path, "lib/pd/bin/pd");
-	exe_symlink.step.dependOn(&install_exe.step);
+	{ // Build & Run Steps
+		const step_exe = b.step("exe", "Build the executable");
+		step_exe.dependOn(&install_exe.step);
 
-	const step_install = b.step("exe", "Build the executable");
-	step_install.dependOn(&exe_symlink.step);
-
-	const run = b.addRunArtifact(exe);
-	run.step.dependOn(&exe_symlink.step);
-	const step_run = b.step("run", "Build and run the executable");
-	step_run.dependOn(&run.step);
-	if (b.args) |args| {
-		run.addArgs(args);
+		const run = b.addRunArtifact(exe);
+		run.step.dependOn(&install_exe.step);
+		run.addPassthruArgs();
+		const step_run = b.step("run", "Build and run the executable");
+		step_run.dependOn(&run.step);
 	}
 
-	//---------------------------------------------------------------------------
-	// Watchdog
+	{ // Symlink
+		const symlink = b.addRunArtifact(b.addExecutable(.{
+			.name = "symlink",
+			.root_module = b.createModule(.{
+				.root_source_file = b.path("src/build/symlink.zig"),
+				.target = b.graph.host,
+			}),
+		}));
+		symlink.addDirectoryArg2(b.graph.path(.install_lib, "pd/bin"), .{});
+		symlink.addFileArg2(b.graph.path(.install_bin, exe.name), .{});
+		install_exe.step.dependOn(&symlink.step);
+	}
+
 	const mod_args: Build.Module.CreateOptions = .{
 		.target = target,
 		.optimize = optimize,
@@ -160,7 +157,7 @@ pub fn build(b: *Build) !void {
 
 	var flags: StringList = .empty;
 	defer flags.deinit(mem);
-	if (optimize != .Debug) {
+	if (optimize != .debug) {
 		try flags.appendSlice(mem, &.{
 			"-ffast-math",
 			"-funroll-loops",
@@ -175,7 +172,7 @@ pub fn build(b: *Build) !void {
 		});
 	}
 
-	if (opt.watchdog) {
+	if (opt.watchdog) { // Watchdog
 		exe.root_module.addCMacro("PD_WATCHDOG", "1");
 		const watchdog = b.addExecutable(.{
 			.name = "pd-watchdog",
@@ -183,7 +180,7 @@ pub fn build(b: *Build) !void {
 		});
 		watchdog.root_module.addCSourceFiles(.{
 			.root = root,
-			.files = src.watchdog,
+			.files = srcs.watchdog,
 			.flags = flags.items,
 		});
 		install_exe.step.dependOn(&b.addInstallArtifact(watchdog, .{
@@ -191,16 +188,14 @@ pub fn build(b: *Build) !void {
 		}).step);
 	}
 
-	//---------------------------------------------------------------------------
-	// Send & Receive
-	{
+	{ // Send & Receive
 		const send = b.addExecutable(.{
 			.name = "pdsend",
 			.root_module = b.createModule(mod_args),
 		});
 		send.root_module.addCSourceFiles(.{
 			.root = root,
-			.files = src.send,
+			.files = srcs.send,
 			.flags = flags.items
 		});
 		install_exe.step.dependOn(&b.addInstallArtifact(send, .{}).step);
@@ -211,45 +206,39 @@ pub fn build(b: *Build) !void {
 		});
 		receive.root_module.addCSourceFiles(.{
 			.root = root,
-			.files = src.receive,
+			.files = srcs.receive,
 			.flags = flags.items
 		});
 		install_exe.step.dependOn(&b.addInstallArtifact(receive, .{}).step);
 	}
 
-	//---------------------------------------------------------------------------
-	// Tcl
-	{
-		try installFiles(b, upstream, install_exe, "tcl", "lib/pd",
-			&.{ ".tcl", ".txt", ".gif" });
-
-		const pd_gui = b.addConfigHeader(.{
-			.style = .{ .autoconf_at = upstream.path("tcl/pd-gui.in") },
-		}, .{
-			.prefix = b.install_prefix,
-			.exec_prefix = "${prefix}",
-			.libdir = "${exec_prefix}/lib",
-			.PACKAGE = "pd",
-		});
-
-		const tail = b.addSystemCommand(&.{ "tail", "-n", "+2" });
-		tail.setStdIn(.{ .lazy_path = pd_gui.getOutputFile() });
+	{ // Tcl
+		installDir(b, upstream, install_exe, "lib/pd", "tcl", &.{ ".tcl", ".txt", ".gif" });
+		const gui = b.addRunArtifact(b.addExecutable(.{
+			.name = "guiconf",
+			.root_module = b.createModule(.{
+				.root_source_file = b.path("src/build/guiconf.zig"),
+				.target = b.graph.host,
+			}),
+		}));
+		if (opt.prefix.len > 0) {
+			gui.addArg(opt.prefix);
+		} else {
+			gui.addDirectoryArg2(b.graph.path(.install_prefix, ""),
+				.{ .make_absolute = true });
+		}
+		const gui_stdout = gui.captureStdOut(.{});
 
 		const chmod = b.addSystemCommand(&.{ "chmod", "+x" });
-		const out = tail.captureStdOut(.{});
-		chmod.addFileArg(out);
-		chmod.step.dependOn(&tail.step);
-
-		const install_pdgui = b.addInstallBinFile(out, "pd-gui");
+		chmod.addFileArg2(gui_stdout, .{});
+		const install_pdgui = b.addInstallBinFile(gui_stdout, "pd-gui");
 		install_pdgui.step.dependOn(&chmod.step);
 		install_exe.step.dependOn(&install_pdgui.step);
 	}
 
-	//---------------------------------------------------------------------------
-	// Extra
-	{
+	{ // Extra
 		const ext = extension(b, target, opt.float_size);
-		for (src.extra) |x| {
+		for (srcs.extra) |x| {
 			const mod = b.createModule(mod_args);
 			mod.addCMacro("PD", "1");
 			mod.addIncludePath(upstream.path("src"));
@@ -271,14 +260,11 @@ pub fn build(b: *Build) !void {
 				b.fmt("lib/pd/{s}{s}", .{ x[0..end], ext }));
 			install_dll.step.dependOn(&dll.step);
 			install_exe.step.dependOn(&install_dll.step);
-			try installFiles(b, upstream, install_exe, dir, "lib/pd",
-				&.{ ".pd", ".txt" });
 		}
-		try installFiles(b, upstream, install_exe, "extra", "lib/pd",
-			&.{ ".pd", ".txt" });
+		installDir(b, upstream, install_exe, "lib/pd", "extra", &.{ ".pd", ".txt" });
 
 		// Zig extern examples
-		for (src.zig_extra) |x| {
+		for (srcs.zig_extra) |x| {
 			const path = b.fmt("extra/{s}/{s}", .{ x, x });
 			const dll = b.addLibrary(.{
 				.name = x,
@@ -286,7 +272,6 @@ pub fn build(b: *Build) !void {
 				.root_module = b.createModule(.{
 					.target = target,
 					.optimize = optimize,
-					.link_libc = true,
 					.root_source_file = b.path(b.fmt("{s}.zig", .{ path })),
 					.imports = &.{.{ .name = "pd", .module = zig_mod }},
 				}),
@@ -295,14 +280,15 @@ pub fn build(b: *Build) !void {
 				b.fmt("lib/pd/{s}{s}", .{ path, ext }));
 			install_dll.step.dependOn(&dll.step);
 			install_exe.step.dependOn(&install_dll.step);
-
-			const help = b.fmt("{s}-help.pd", .{ path });
-			const help2 = b.fmt("lib/pd/{s}", .{ help });
-			install_exe.step.dependOn(&b.addInstallFile(b.path(help), help2).step);
 		}
+		install_exe.step.dependOn(&b.addInstallDirectory(.{
+			.include_extensions = &.{ ".pd", ".txt" },
+			.source_dir = b.path("extra"),
+			.install_subdir = "lib/pd/extra",
+			.install_dir = .prefix,
+		}).step);
 	}
 
-	//---------------------------------------------------------------------------
 	// Docs
 	install_exe.step.dependOn(&b.addInstallDirectory(.{
 		.exclude_extensions = &.{ "Makefile", ".am", ".in" },
@@ -311,35 +297,25 @@ pub fn build(b: *Build) !void {
 		.install_dir = .prefix,
 	}).step);
 
-	//---------------------------------------------------------------------------
 	// Resources
 	if (os == .linux) {
-		install_exe.step.dependOn(&b.addInstallFile(
-			upstream.path("linux/org.puredata.pd-gui.desktop"),
-			"share/applications/org.puredata.pd-gui.desktop",
-		).step);
-		install_exe.step.dependOn(&b.addInstallFile(
-			upstream.path("linux/org.puredata.pd-gui.metainfo.xml"),
-			"share/metainfo/org.puredata.pd-gui.metainfo.xml",
-		).step);
+		installFile(b, upstream, install_exe, "share/applications",
+			"linux/info.puredata.Pd.desktop");
+		installFile(b, upstream, install_exe, "share/metainfo",
+			"linux/info.puredata.Pd.metainfo.xml");
 
 		// Icons
-		install_exe.step.dependOn(&b.addInstallFile(
-			upstream.path("linux/icons/48x48/puredata.png"),
-			"share/icons/hicolor/48x48/apps/puredata.png",
-		).step);
-		install_exe.step.dependOn(&b.addInstallFile(
-			upstream.path("linux/icons/512x512/puredata.png"),
-			"share/icons/hicolor/512x512/apps/puredata.png",
-		).step);
-		install_exe.step.dependOn(&b.addInstallFile(
-			upstream.path("linux/icons/puredata.svg"),
-			"share/icons/hicolor/scalable/apps/puredata.svg",
-		).step);
+		installFile(b, upstream, install_exe, "share/icons/hicolor/48x48/apps",
+			"linux/icons/48x48/puredata.png");
+		installFile(b, upstream, install_exe, "share/icons/hicolor/512x512/apps",
+			"linux/icons/512x512/puredata.png");
+		installFile(b, upstream, install_exe, "share/icons/hicolor/scalable/apps",
+			"linux/icons/puredata.svg");
 
-		try installFiles(b, upstream, install_exe, "font", "share/pd",
+		// Fonts, License, Readme
+		installDir(b, upstream, install_exe, "share/pd", "font",
 			&.{ ".ttf", ".txt", "LICENSE" });
-		try installFiles(b, upstream, install_exe, ".", "share/pd",
-			&.{ "LICENSE.txt", "README.txt" });
+		installFile(b, upstream, install_exe, "share/pd", "LICENSE.txt");
+		installFile(b, upstream, install_exe, "share/pd", "README.txt");
 	}
 }

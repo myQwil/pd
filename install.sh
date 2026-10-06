@@ -4,7 +4,7 @@ set -euo pipefail
 PREFIX="${PREFIX:-/usr/local}"
 
 # Staging
-DESTDIR=build zig build -p "$PREFIX" "$@"
+DESTDIR=build zig build -p "$PREFIX" -Dprefix="$PREFIX" "$@"
 
 # Generate manifest (in case you want to uninstall later)
 find build -type f -printf '/%P\n' > install_manifest.txt
