@@ -1,5 +1,5 @@
 const std = @import("std");
-const c = @import("cdef");
+const c = @import("c");
 const m = @import("pd.zig");
 const cnv = @import("canvas.zig");
 

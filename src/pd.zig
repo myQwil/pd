@@ -1,4 +1,4 @@
-const c = @import("cdef");
+const c = @import("c");
 const std = @import("std");
 const builtin = @import("builtin");
 pub const opt = @import("options");

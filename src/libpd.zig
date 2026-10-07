@@ -1,4 +1,4 @@
-const c = @import("cdef");
+const c = @import("c");
 pub const pd = @import("pd");
 
 pub const ulong = @Int(.unsigned, @bitSizeOf(c_long) - 1);

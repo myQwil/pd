@@ -1,4 +1,5 @@
 const std = @import("std");
+const Translator = @import("translate_c").Translator;
 const srcs = @import("src/build/sources.zig");
 
 const Options = @import("src/build/Options.zig");
@@ -70,17 +71,16 @@ pub fn build(b: *Build) !void {
 	const opt: Options = .init(b, os);
 	const mem = b.allocator;
 
+	// C translation
+	const c: Translator = .init(b.dependency("translate_c", .{}), .{
+		.c_source_file = b.path("src/build/pd_all.h"),
+		.target = target,
+		.optimize = optimize,
+	});
+	c.addIncludePath(upstream.path("src"));
+	c.defineCMacro("PD_FLOATSIZE", b.fmt("{}", .{ opt.float_size }));
+
 	// Zig extern module
-	const c_mod = blk: {
-		const c = b.addTranslateC(.{
-			.root_source_file = b.path("src/build/pd_all.h"),
-			.target = target,
-			.optimize = optimize,
-		});
-		c.addIncludePath(upstream.path("src"));
-		c.defineCMacro("PD_FLOATSIZE", b.fmt("{}", .{ opt.float_size }));
-		break :blk c.createModule();
-	};
 	const zig_mod = b.addModule("pd", .{
 		.target = target,
 		.optimize = optimize,
@@ -91,7 +91,7 @@ pub fn build(b: *Build) !void {
 				o.addOption(bool, "multi", opt.lib.multi);
 				break :blk o.createModule();
 			}},
-			.{ .name = "cdef", .module = c_mod },
+			.{ .name = "c", .module = c.mod },
 		},
 	});
 
@@ -110,7 +110,7 @@ pub fn build(b: *Build) !void {
 			.root_source_file = b.path("src/libpd.zig"),
 			.imports = &.{
 				.{ .name = "pd", .module = zig_mod },
-				.{ .name = "cdef", .module = c_mod },
+				.{ .name = "c", .module = c.mod },
 			},
 		});
 		zig_lib_mod.linkLibrary(lib);
