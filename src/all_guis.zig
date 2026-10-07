@@ -266,7 +266,7 @@ pub const Gui = extern struct {
 		s: *Symbol,
 		send_to_gui: SendToGui,
 	) void {
-		c.iemgui_dolabel(x, @ptrCast(self), @ptrCast(s), @intFromEnum(send_to_gui));
+		c.iemgui_dolabel(x, @ptrCast(self), @ptrCast(s), @backingInt(send_to_gui));
 	}
 
 	pub const Scale = enum(c_int) {
@@ -299,9 +299,9 @@ pub const Gui = extern struct {
 			x, @ptrCast(self), objname,
 			width, width_min,
 			height, height_min,
-			range_min, range_max, @intFromEnum(range_checkmode),
-			@intFromEnum(scale), mode_label0, mode_label1,
-			@intFromBool(canloadbang), @intFromEnum(steady), number,
+			range_min, range_max, @backingInt(range_checkmode),
+			@backingInt(scale), mode_label0, mode_label1,
+			@intFromBool(canloadbang), @backingInt(steady), number,
 		);
 	}
 

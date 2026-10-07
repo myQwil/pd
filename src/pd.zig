@@ -76,9 +76,9 @@ pub const Atom = extern struct {
 		) @Tuple(&@as([args.len + 1]type, @splat(c_uint))) {
 			var tpl: @Tuple(&@as([args.len + 1]type, @splat(c_uint))) = undefined;
 			inline for (0..args.len) |i| {
-				tpl[i] = @intFromEnum(args[i]);
+				tpl[i] = @backingInt(args[i]);
 			}
-			tpl[args.len] = @intFromEnum(Type.none);
+			tpl[args.len] = @backingInt(Type.none);
 			return tpl;
 		}
 	};
@@ -1060,7 +1060,7 @@ pub const post = struct {
 		fmt: [*:0]const u8,
 		args: anytype
 	) void {
-		@call(.auto, c.logpost, .{ obj, @as(c_int, @intFromEnum(level)), fmt } ++ args);
+		@call(.auto, c.logpost, .{ obj, @as(c_int, @backingInt(level)), fmt } ++ args);
 	}
 };
 
@@ -1104,17 +1104,17 @@ pub const Resample = extern struct {
 
 	pub fn dsp(self: *Resample, in: []Sample, out: []Sample, conv: Converter) void {
 		c.resample_dsp(@ptrCast(self),
-			in.ptr, iFromU(in.len), out.ptr, iFromU(out.len), @intFromEnum(conv));
+			in.ptr, iFromU(in.len), out.ptr, iFromU(out.len), @backingInt(conv));
 	}
 
 	pub fn dspFrom(self: *Resample, in: []Sample, out_len: uint, conv: Converter) void {
 		c.resamplefrom_dsp(@ptrCast(self),
-			in.ptr, iFromU(in.len), out_len, @intFromEnum(conv));
+			in.ptr, iFromU(in.len), out_len, @backingInt(conv));
 	}
 
 	pub fn dspTo(self: *Resample, in_len: uint, out: []Sample, conv: Converter) void {
 		c.resampleto_dsp(@ptrCast(self),
-			out.ptr, in_len, iFromU(out.len), @intFromEnum(conv));
+			out.ptr, in_len, iFromU(out.len), @backingInt(conv));
 	}
 };
 
