@@ -62,10 +62,7 @@ pub fn build(b: *Build) !void {
 	const target = b.standardTargetOptions(.{});
 	const optimize = b.standardOptimizeOption(.{});
 
-	const upstream = b.dependency("pd", .{
-		.target = target,
-		.optimize = optimize,
-	});
+	const upstream = b.dependency("pd", .{});
 	const root = upstream.path(".");
 	const os = target.result.os.tag;
 	const opt: Options = .init(b, os);
@@ -250,23 +247,23 @@ pub fn build(b: *Build) !void {
 
 			const end = x.len - 2;
 			const dir = std.fs.path.dirname(x).?;
-			const dll = b.addLibrary(.{
+			const lib = b.addLibrary(.{
 				.name = x[dir.len + 1..end],
 				.linkage = .dynamic,
 				.root_module = mod,
 			});
 
-			const install_dll = b.addInstallFile(dll.getEmittedBin(),
+			const install_lib = b.addInstallFile(lib.getEmittedBin(),
 				b.fmt("lib/pd/{s}{s}", .{ x[0..end], ext }));
-			install_dll.step.dependOn(&dll.step);
-			install_exe.step.dependOn(&install_dll.step);
+			install_lib.step.dependOn(&lib.step);
+			install_exe.step.dependOn(&install_lib.step);
 		}
 		installDir(b, upstream, install_exe, "lib/pd", "extra", &.{ ".pd", ".txt" });
 
 		// Zig extern examples
 		for (srcs.zig_extra) |x| {
 			const path = b.fmt("extra/{s}/{s}", .{ x, x });
-			const dll = b.addLibrary(.{
+			const lib = b.addLibrary(.{
 				.name = x,
 				.linkage = .dynamic,
 				.root_module = b.createModule(.{
@@ -276,10 +273,10 @@ pub fn build(b: *Build) !void {
 					.imports = &.{.{ .name = "pd", .module = zig_mod }},
 				}),
 			});
-			const install_dll = b.addInstallFile(dll.getEmittedBin(),
+			const install_lib = b.addInstallFile(lib.getEmittedBin(),
 				b.fmt("lib/pd/{s}{s}", .{ path, ext }));
-			install_dll.step.dependOn(&dll.step);
-			install_exe.step.dependOn(&install_dll.step);
+			install_lib.step.dependOn(&lib.step);
+			install_exe.step.dependOn(&install_lib.step);
 		}
 		install_exe.step.dependOn(&b.addInstallDirectory(.{
 			.include_extensions = &.{ ".pd", ".txt" },
