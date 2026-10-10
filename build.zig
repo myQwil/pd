@@ -110,6 +110,13 @@ pub fn build(b: *Build) !void {
 				.{ .name = "c", .module = c.mod },
 			},
 		});
+		if (opt.emsdk_inc) |include| {
+			lib.root_module.addCMacro("HAVE_ENDIAN_H", "1");
+			lib.root_module.addSystemIncludePath(include);
+			c.defineCMacro("HAVE_ENDIAN_H", "1");
+			c.addSystemIncludePath(include);
+			c.run.step.dependOn(&lib.step); // wait for emsdk to activate
+		}
 		zig_lib_mod.linkLibrary(lib);
 	}
 
@@ -218,8 +225,8 @@ pub fn build(b: *Build) !void {
 				.target = b.graph.host,
 			}),
 		}));
-		if (opt.prefix.len > 0) {
-			gui.addArg(opt.prefix);
+		if (opt.prefix) |prefix| {
+			gui.addArg(prefix);
 		} else {
 			gui.addDirectoryArg2(b.graph.path(.install_prefix, ""),
 				.{ .make_absolute = true });
